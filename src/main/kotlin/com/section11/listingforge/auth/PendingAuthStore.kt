@@ -3,7 +3,10 @@
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
-data class PendingAuth(val verifier: String, val createdAt: Instant)
+data class PendingAuth(val verifier: String, val client: AuthClient, val createdAt: Instant)
+
+/** Which frontend started the flow; decides how the callback hands control back. */
+enum class AuthClient { WEB, ANDROID }
 
 /**
  * Holds in-flight OAuth attempts: state -> the PKCE verifier issued for it.
@@ -15,7 +18,7 @@ data class PendingAuth(val verifier: String, val createdAt: Instant)
  * not an oversight.
  */
 interface PendingAuthStore {
-    fun put(state: String, verifier: String)
+    fun put(state: String, verifier: String, client: AuthClient)
     /** Returns AND removes the entry (single-use); null if absent or expired. */
     fun consume(state: String): PendingAuth?
 }
@@ -25,8 +28,8 @@ class InMemoryPendingAuthStore(
 ) : PendingAuthStore {
     private val entries = ConcurrentHashMap<String, PendingAuth>()
 
-    override fun put(state: String, verifier: String) {
-        entries[state] = PendingAuth(verifier, Instant.now())
+    override fun put(state: String, verifier: String, client: AuthClient) {
+        entries[state] = PendingAuth(verifier, client, Instant.now())
     }
 
     override fun consume(state: String): PendingAuth? {

@@ -3,6 +3,7 @@
 import com.section11.listingforge.auth.EtsyOAuthClient
 import com.section11.listingforge.auth.InMemoryPendingAuthStore
 import com.section11.listingforge.auth.PendingAuthStore
+import com.section11.listingforge.auth.SessionTokenService
 import com.section11.listingforge.config.AppConfig
 import com.section11.listingforge.db.Database
 import com.section11.listingforge.etsy.EtsyApiClient
@@ -30,6 +31,11 @@ fun appModule(config: AppConfig) = module {
 
     single<TokenStore> { SqliteTokenStore(get()) }
     single<PendingAuthStore> { InMemoryPendingAuthStore() }
+
+    single {
+        val cfg = get<AppConfig>()
+        SessionTokenService(cfg.sessionSignKey.toByteArray(), cfg.sessionTokenTtlSeconds)
+    }
 
     single {
         HttpClient(CIO) {

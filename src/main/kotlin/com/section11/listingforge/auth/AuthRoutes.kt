@@ -10,7 +10,6 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.sessions.clear
-import io.ktor.server.sessions.get
 import io.ktor.server.sessions.sessions
 import io.ktor.server.sessions.set
 
@@ -31,12 +30,20 @@ fun Route.authRoutes(
     pendingAuth: PendingAuthStore,
     oauth: EtsyOAuthClient,
     tokenStore: TokenStore,
+    sessionTokens: SessionTokenService,
 ) {
     get("/auth/login") {
+        // The client tells us how it wants control handed back after consent:
+        // a browser gets a cookie + redirect to the SPA; the app gets a bearer
+        // token on a deep link. Default to WEB for backward compatibility.
+        val client = when (call.request.queryParameters["client"]?.lowercase()) {
+            "android" -> AuthClient.ANDROID
+            else -> AuthClient.WEB
+        }
         val verifier = Pkce.newVerifier()
         val challenge = Pkce.challengeFor(verifier)
         val state = Pkce.newState()
-        pendingAuth.put(state, verifier)
+        pendingAuth.put(state, verifier, client)
 
         val authorizeUrl = URLBuilder(config.etsyAuthorizeUrl).apply {
             parameters.append("response_type", "code")
@@ -69,14 +76,33 @@ fun Route.authRoutes(
 
         val record = oauth.exchangeCode(code, pending.verifier)
         tokenStore.save(record)
-        call.sessions.set(UserSession(record.userId))
-        call.respondText("Signed in as Etsy user ${record.userId}")
+
+        when (pending.client) {
+            AuthClient.WEB -> {
+                // Browser: plant the HttpOnly session cookie (JS can't read it,
+                // so XSS can't steal it) and bounce back to the SPA, which then
+                // fetches the signed-in user. No credential ever reaches JS.
+                call.sessions.set(UserSession(record.userId))
+                call.respondRedirect(config.frontendOrigin)
+            }
+            AuthClient.ANDROID -> {
+                // Native app: cookies don't fit. Mint a signed bearer token and
+                // hand it back on the registered deep link's fragment. The app
+                // stores it in secure storage and sends it as Authorization.
+                val token = sessionTokens.issue(record.userId)
+                call.respondRedirect("${config.androidAuthDeepLink}#token=$token")
+            }
+        }
     }
 
     post("/auth/logout") {
-        val session = call.sessions.get<UserSession>()
-        if (session != null) {
-            tokenStore.delete(session.userId)
+        // Works for both transports: resolve whoever is calling, drop their Etsy
+        // tokens. A bearer token stays signature-valid until it expires, but with
+        // no stored Etsy token behind it, every API call 401s - effectively
+        // logged out. Clearing the cookie ends the web session immediately.
+        val userId = call.resolveUserId(sessionTokens)
+        if (userId != null) {
+            tokenStore.delete(userId)
             call.sessions.clear<UserSession>()
         }
         call.respondText("Logged out")

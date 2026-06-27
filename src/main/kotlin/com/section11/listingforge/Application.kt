@@ -3,6 +3,7 @@
 import com.section11.listingforge.api.apiRoutes
 import com.section11.listingforge.auth.EtsyOAuthClient
 import com.section11.listingforge.auth.PendingAuthStore
+import com.section11.listingforge.auth.SessionTokenService
 import com.section11.listingforge.auth.authRoutes
 import com.section11.listingforge.config.AppConfig
 import com.section11.listingforge.di.appModule
@@ -49,10 +50,11 @@ fun Application.module(config: AppConfig) {
     val oauth by inject<EtsyOAuthClient>()
     val tokenStore by inject<TokenStore>()
     val etsyApi by inject<EtsyApiClient>()
+    val sessionTokens by inject<SessionTokenService>()
 
     routing {
         get("/health") { call.respondText("ok") }
-        authRoutes(config, pendingAuth, oauth, tokenStore)
-        apiRoutes(etsyApi)
+        authRoutes(config, pendingAuth, oauth, tokenStore, sessionTokens)
+        apiRoutes(etsyApi, sessionTokens)
     }
 }

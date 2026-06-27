@@ -24,11 +24,21 @@ data class AppConfig(
     val etsyAuthorizeUrl: String,
     val etsyTokenUrl: String,
     val etsyApiBase: String,
+    // Where the native (Android) client is sent after a successful callback. The
+    // session token rides back on this deep link's fragment. The app registers
+    // this scheme so the OS hands the redirect to it instead of a browser tab.
+    val androidAuthDeepLink: String,
+    // How long a bearer session token stays valid. Native sessions are long-lived
+    // (the user shouldn't re-consent constantly); the underlying Etsy token is
+    // refreshed server-side independently.
+    val sessionTokenTtlSeconds: Long,
 ) {
     companion object {
         private const val DEFAULT_ETSY_AUTHORIZE_URL = "https://www.etsy.com/oauth/connect"
         private const val DEFAULT_ETSY_TOKEN_URL = "https://api.etsy.com/v3/public/oauth/token"
         private const val DEFAULT_ETSY_API_BASE = "https://api.etsy.com/v3/application"
+        private const val DEFAULT_ANDROID_AUTH_DEEPLINK = "listingforge://auth"
+        private const val DEFAULT_SESSION_TOKEN_TTL = "2592000" // 30 days
 
         fun fromEnv(): AppConfig {
             fun required(name: String): String =
@@ -49,6 +59,8 @@ data class AppConfig(
                 etsyAuthorizeUrl = optional("ETSY_AUTHORIZE_URL", DEFAULT_ETSY_AUTHORIZE_URL),
                 etsyTokenUrl = optional("ETSY_TOKEN_URL", DEFAULT_ETSY_TOKEN_URL),
                 etsyApiBase = optional("ETSY_API_BASE", DEFAULT_ETSY_API_BASE),
+                androidAuthDeepLink = optional("ANDROID_AUTH_DEEPLINK", DEFAULT_ANDROID_AUTH_DEEPLINK),
+                sessionTokenTtlSeconds = optional("SESSION_TOKEN_TTL_SECONDS", DEFAULT_SESSION_TOKEN_TTL).toLong(),
             )
         }
     }

@@ -54,6 +54,7 @@ fun Application.configureCors(config: AppConfig) {
     install(CORS) {
         allowHost(host, schemes = listOf("http", "https"))
         allowHeader(HttpHeaders.ContentType)
+        allowHeader(HttpHeaders.Authorization)      // bearer transport (also lets a web client opt into it)
         allowCredentials = true                     // required so cookies can cross origin
         allowMethod(HttpMethod.Get)
         allowMethod(HttpMethod.Post)
