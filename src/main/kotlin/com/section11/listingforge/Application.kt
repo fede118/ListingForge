@@ -4,10 +4,11 @@ import com.section11.listingforge.api.apiRoutes
 import com.section11.listingforge.auth.EtsyOAuthClient
 import com.section11.listingforge.auth.PendingAuthStore
 import com.section11.listingforge.auth.SessionTokenService
+import com.section11.listingforge.auth.UserResolver
 import com.section11.listingforge.auth.authRoutes
 import com.section11.listingforge.config.AppConfig
 import com.section11.listingforge.di.appModule
-import com.section11.listingforge.etsy.EtsyApiClient
+import com.section11.listingforge.etsy.EtsyApi
 import com.section11.listingforge.plugins.configureCallLogging
 import com.section11.listingforge.plugins.configureCors
 import com.section11.listingforge.plugins.configureSerialization
@@ -27,7 +28,7 @@ import org.koin.logger.slf4jLogger
 
 fun main() {
     val config = AppConfig.fromEnv()   // fail fast on missing config, before binding the port
-    embeddedServer(Netty, port = config.serverPort) {
+    embeddedServer(Netty, port = config.server.port) {
         module(config)
     }.start(wait = true)
 }
@@ -49,12 +50,13 @@ fun Application.module(config: AppConfig) {
     val pendingAuth by inject<PendingAuthStore>()
     val oauth by inject<EtsyOAuthClient>()
     val tokenStore by inject<TokenStore>()
-    val etsyApi by inject<EtsyApiClient>()
+    val etsyApi by inject<EtsyApi>()
     val sessionTokens by inject<SessionTokenService>()
+    val userResolver by inject<UserResolver>()
 
     routing {
         get("/health") { call.respondText("ok") }
         authRoutes(config, pendingAuth, oauth, tokenStore, sessionTokens)
-        apiRoutes(etsyApi, sessionTokens)
+        apiRoutes(etsyApi, userResolver)
     }
 }

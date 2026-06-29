@@ -33,12 +33,12 @@ fun Application.configureSessions(config: AppConfig) {
         cookie<UserSession>("SESSION") {
             cookie.path = "/"
             cookie.httpOnly = true                 // JavaScript cannot read it
-            cookie.secure = config.cookieSecure     // true once behind HTTPS
+            cookie.secure = config.session.cookieSecure // true once behind HTTPS
             cookie.extensions["SameSite"] = "Lax"   // sent on the top-level callback redirect
             // HMAC-sign the cookie so the userId it carries can't be forged.
             transform(
                 SessionTransportTransformerMessageAuthentication(
-                    config.sessionSignKey.toByteArray()
+                    config.session.signKey.toByteArray()
                 )
             )
         }
@@ -48,7 +48,7 @@ fun Application.configureSessions(config: AppConfig) {
 fun Application.configureCors(config: AppConfig) {
     // Forward-looking: only matters once a separate-origin web client calls in.
     // Same-origin browser testing doesn't trigger CORS at all.
-    val host = config.frontendOrigin
+    val host = config.client.frontendOrigin
         .removePrefix("https://")
         .removePrefix("http://")
     install(CORS) {

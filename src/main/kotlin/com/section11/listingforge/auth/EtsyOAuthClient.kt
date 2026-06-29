@@ -29,15 +29,15 @@ class EtsyOAuthClient(
     private val http: HttpClient,
     private val config: AppConfig,
 ) {
-    private val tokenUrl = config.etsyTokenUrl
+    private val tokenUrl = config.etsy.tokenUrl
 
     suspend fun exchangeCode(code: String, verifier: String): TokenRecord {
         val response: EtsyTokenResponse = http.submitForm(
             url = tokenUrl,
             formParameters = parameters {
                 append("grant_type", "authorization_code")
-                append("client_id", config.etsyKeystring)
-                append("redirect_uri", config.redirectUri)
+                append("client_id", config.etsy.keystring)
+                append("redirect_uri", config.etsy.redirectUri)
                 append("code", code)
                 append("code_verifier", verifier)
             }
@@ -50,7 +50,7 @@ class EtsyOAuthClient(
             url = tokenUrl,
             formParameters = parameters {
                 append("grant_type", "refresh_token")
-                append("client_id", config.etsyKeystring)
+                append("client_id", config.etsy.keystring)
                 append("refresh_token", refreshToken)
             }
         ).body()

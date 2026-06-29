@@ -29,10 +29,10 @@ class EtsyApiClient(
     private val oauth: EtsyOAuthClient,
     private val tokenStore: TokenStore,
     private val config: AppConfig,
-) {
-    private val base = config.etsyApiBase
+) : EtsyApi {
+    private val base = config.etsy.apiBase
     private val apiKeyHeader: String
-        get() = "${config.etsyKeystring}:${config.etsySharedSecret}"
+        get() = "${config.etsy.keystring}:${config.etsy.sharedSecret}"
 
     /** Returns a non-expired access token, refreshing + persisting if needed. */
     private suspend fun validAccessToken(userId: String): String {
@@ -46,7 +46,7 @@ class EtsyApiClient(
     }
 
     /** Proxies GET /users/me â€” the simplest call that proves a token works. */
-    suspend fun getMe(userId: String): String {
+    override suspend fun getMe(userId: String): String {
         val token = validAccessToken(userId)
         return http.get("$base/users/me") {
             header(HttpHeaders.Authorization, "Bearer $token")

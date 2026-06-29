@@ -2,11 +2,17 @@
 
 import com.section11.listingforge.auth.EtsyOAuthClient
 import com.section11.listingforge.auth.InMemoryPendingAuthStore
+import com.section11.listingforge.auth.MockUserResolver
 import com.section11.listingforge.auth.PendingAuthStore
+import com.section11.listingforge.auth.RealUserResolver
 import com.section11.listingforge.auth.SessionTokenService
+import com.section11.listingforge.auth.UserResolver
 import com.section11.listingforge.config.AppConfig
+import com.section11.listingforge.config.AppMode
 import com.section11.listingforge.db.Database
+import com.section11.listingforge.etsy.EtsyApi
 import com.section11.listingforge.etsy.EtsyApiClient
+import com.section11.listingforge.etsy.FakeEtsyApi
 import com.section11.listingforge.token.SqliteTokenStore
 import com.section11.listingforge.token.TokenStore
 import io.ktor.client.HttpClient
@@ -27,14 +33,14 @@ import javax.sql.DataSource
 fun appModule(config: AppConfig) = module {
     single { config }
 
-    single<DataSource> { Database.dataSource(get<AppConfig>().dbPath) }
+    single<DataSource> { Database.dataSource(get<AppConfig>().db.path) }
 
     single<TokenStore> { SqliteTokenStore(get()) }
     single<PendingAuthStore> { InMemoryPendingAuthStore() }
 
     single {
         val cfg = get<AppConfig>()
-        SessionTokenService(cfg.sessionSignKey.toByteArray(), cfg.sessionTokenTtlSeconds)
+        SessionTokenService(cfg.session.signKey.toByteArray(), cfg.session.tokenTtlSeconds)
     }
 
     single {
@@ -46,5 +52,16 @@ fun appModule(config: AppConfig) = module {
     }
 
     single { EtsyOAuthClient(get(), get()) }
-    single { EtsyApiClient(get(), get(), get(), get()) }
+
+    // Mode-selected bindings. In MOCK the upstream and the auth check are both
+    // faked, so the app gets a success with no Etsy call and no sign-in. Mock
+    // implementations are only ever constructed in a mock process.
+    single<EtsyApi> {
+        if (get<AppConfig>().appMode == AppMode.MOCK) FakeEtsyApi()
+        else EtsyApiClient(get(), get(), get(), get())
+    }
+    single<UserResolver> {
+        if (get<AppConfig>().appMode == AppMode.MOCK) MockUserResolver()
+        else RealUserResolver(get())
+    }
 }

@@ -45,11 +45,11 @@ fun Route.authRoutes(
         val state = Pkce.newState()
         pendingAuth.put(state, verifier, client)
 
-        val authorizeUrl = URLBuilder(config.etsyAuthorizeUrl).apply {
+        val authorizeUrl = URLBuilder(config.etsy.authorizeUrl).apply {
             parameters.append("response_type", "code")
-            parameters.append("client_id", config.etsyKeystring)
-            parameters.append("redirect_uri", config.redirectUri)
-            parameters.append("scope", config.oauthScopes)
+            parameters.append("client_id", config.etsy.keystring)
+            parameters.append("redirect_uri", config.etsy.redirectUri)
+            parameters.append("scope", config.etsy.oauthScopes)
             parameters.append("state", state)
             parameters.append("code_challenge", challenge)
             parameters.append("code_challenge_method", "S256")
@@ -83,14 +83,14 @@ fun Route.authRoutes(
                 // so XSS can't steal it) and bounce back to the SPA, which then
                 // fetches the signed-in user. No credential ever reaches JS.
                 call.sessions.set(UserSession(record.userId))
-                call.respondRedirect(config.frontendOrigin)
+                call.respondRedirect(config.client.frontendOrigin)
             }
             AuthClient.ANDROID -> {
                 // Native app: cookies don't fit. Mint a signed bearer token and
                 // hand it back on the registered deep link's fragment. The app
                 // stores it in secure storage and sends it as Authorization.
                 val token = sessionTokens.issue(record.userId)
-                call.respondRedirect("${config.androidAuthDeepLink}#token=$token")
+                call.respondRedirect("${config.client.androidAuthDeepLink}#token=$token")
             }
         }
     }
