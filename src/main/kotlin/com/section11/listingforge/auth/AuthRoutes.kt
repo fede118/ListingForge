@@ -87,10 +87,11 @@ fun Route.authRoutes(
             }
             AuthClient.ANDROID -> {
                 // Native app: cookies don't fit. Mint a signed bearer token and
-                // hand it back on the registered deep link's fragment. The app
-                // stores it in secure storage and sends it as Authorization.
+                // hand it back as a query parameter on the registered deep link,
+                // so the app can read it with Uri.getQueryParameter("token"). The
+                // app stores it in secure storage and sends it as Authorization.
                 val token = sessionTokens.issue(record.userId)
-                call.respondRedirect("${config.client.androidAuthDeepLink}#token=$token")
+                call.respondRedirect("${config.client.androidAuthDeepLink}?token=$token")
             }
         }
     }
