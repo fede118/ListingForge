@@ -2,14 +2,24 @@
 
 import com.section11.listingforge.auth.EtsyOAuthClient
 import com.section11.listingforge.config.AppConfig
+import com.section11.listingforge.dto.ShopResponse
 import com.section11.listingforge.error.NotAuthenticatedException
 import com.section11.listingforge.token.TokenStore
 import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import java.time.Instant
+
+/**
+ * Etsy's custom app-identity header. Not part of HttpHeaders (which is why it's a
+ * named const here rather than a typed constant), and required on every Etsy API
+ * call alongside the bearer token.
+ */
+private const val ETSY_API_KEY_HEADER = "x-api-key"
 
 /**
  * Makes authenticated calls to Etsy on a user's behalf.
@@ -48,9 +58,27 @@ class EtsyApiClient(
     /** Proxies GET /users/me â€” the simplest call that proves a token works. */
     override suspend fun getMe(userId: String): String {
         val token = validAccessToken(userId)
-        return http.get("$base/users/me") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            header("x-api-key", apiKeyHeader)
-        }.bodyAsText()
+        return http.get("$base/users/me") { etsyAuth(token) }.bodyAsText()
+    }
+
+    /**
+     * getMe carries the shop_id, so resolving a shop is two hops: read it, then
+     * fetch the shop by id for its name. A signed-in user with no shop (shopId
+     * null) is unexpected under the shops_r scope, so it surfaces as a 500 rather
+     * than a fabricated empty shop.
+     */
+    override suspend fun getShop(userId: String): ShopResponse {
+        val token = validAccessToken(userId)
+        val me: EtsyUser = http.get("$base/users/me") { etsyAuth(token) }.body()
+        val shopId = me.shopId
+            ?: error("Signed-in Etsy user has no shop")
+        val shop: EtsyShop = http.get("$base/shops/$shopId") { etsyAuth(token) }.body()
+        return ShopResponse(id = shop.shopId, name = shop.shopName)
+    }
+
+    /** Attaches the bearer token and app key every Etsy API call needs. */
+    private fun HttpRequestBuilder.etsyAuth(token: String) {
+        header(HttpHeaders.Authorization, "Bearer $token")
+        header(ETSY_API_KEY_HEADER, apiKeyHeader)
     }
 }

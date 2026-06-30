@@ -4,6 +4,7 @@ import com.section11.listingforge.auth.UserResolver
 import com.section11.listingforge.error.NotAuthenticatedException
 import com.section11.listingforge.etsy.EtsyApi
 import io.ktor.http.ContentType
+import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
@@ -20,5 +21,11 @@ fun Route.apiRoutes(etsy: EtsyApi, userResolver: UserResolver) {
             ?: throw NotAuthenticatedException("Not signed in")
         val body = etsy.getMe(userId)
         call.respondText(body, ContentType.Application.Json)
+    }
+
+    get("/api/shop") {
+        val userId = userResolver.resolve(call)
+            ?: throw NotAuthenticatedException("Not signed in")
+        call.respond(etsy.getShop(userId))
     }
 }
