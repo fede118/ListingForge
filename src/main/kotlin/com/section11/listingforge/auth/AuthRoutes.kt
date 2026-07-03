@@ -3,7 +3,6 @@
 import com.section11.listingforge.config.AppConfig
 import com.section11.listingforge.token.TokenStore
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.URLBuilder
 import io.ktor.server.response.respondRedirect
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
@@ -17,20 +16,24 @@ import io.ktor.server.sessions.set
  * The login flow, three endpoints:
  *
  *   GET  /auth/login    start  -> mint verifier+challenge+state, stash verifier,
- *                                 redirect the browser to Etsy's consent screen
+ *                                 hand off to the consent screen (real Etsy in
+ *                                 PROD, a stub page in MOCK - see ConsentScreen)
  *   GET  /auth/callback  finish -> validate state (CSRF), exchange code -> tokens,
  *                                 persist tokens, set the session cookie
  *   POST /auth/logout    -> drop the session and the stored tokens
  *
  * Dependencies are passed in (not service-located inside the handlers), which
- * keeps these routes trivially testable.
+ * keeps these routes trivially testable. oauth and consentScreen are bound by
+ * mode at the composition root (AppModule); this function never knows which
+ * mode it's running under.
  */
 fun Route.authRoutes(
     config: AppConfig,
     pendingAuth: PendingAuthStore,
-    oauth: EtsyOAuthClient,
+    oauth: OAuthClient,
     tokenStore: TokenStore,
     sessionTokens: SessionTokenService,
+    consentScreen: ConsentScreen,
 ) {
     get("/auth/login") {
         // The client tells us how it wants control handed back after consent:
@@ -45,17 +48,7 @@ fun Route.authRoutes(
         val state = Pkce.newState()
         pendingAuth.put(state, verifier, client)
 
-        val authorizeUrl = URLBuilder(config.etsy.authorizeUrl).apply {
-            parameters.append("response_type", "code")
-            parameters.append("client_id", config.etsy.keystring)
-            parameters.append("redirect_uri", config.etsy.redirectUri)
-            parameters.append("scope", config.etsy.oauthScopes)
-            parameters.append("state", state)
-            parameters.append("code_challenge", challenge)
-            parameters.append("code_challenge_method", "S256")
-        }.buildString()
-
-        call.respondRedirect(authorizeUrl)
+        consentScreen.respond(call, state, challenge)
     }
 
     get("/auth/callback") {

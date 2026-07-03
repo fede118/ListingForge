@@ -1,7 +1,8 @@
 ﻿package com.section11.listingforge
 
 import com.section11.listingforge.api.apiRoutes
-import com.section11.listingforge.auth.EtsyOAuthClient
+import com.section11.listingforge.auth.ConsentScreen
+import com.section11.listingforge.auth.OAuthClient
 import com.section11.listingforge.auth.PendingAuthStore
 import com.section11.listingforge.auth.SessionTokenService
 import com.section11.listingforge.auth.UserResolver
@@ -48,15 +49,16 @@ fun Application.module(config: AppConfig) {
     // Resolve dependencies once at wiring time and pass them into the route
     // builders, rather than service-locating inside each handler.
     val pendingAuth by inject<PendingAuthStore>()
-    val oauth by inject<EtsyOAuthClient>()
+    val oauth by inject<OAuthClient>()
     val tokenStore by inject<TokenStore>()
     val etsyApi by inject<EtsyApi>()
     val sessionTokens by inject<SessionTokenService>()
     val userResolver by inject<UserResolver>()
+    val consentScreen by inject<ConsentScreen>()
 
     routing {
         get("/health") { call.respondText("ok") }
-        authRoutes(config, pendingAuth, oauth, tokenStore, sessionTokens)
+        authRoutes(config, pendingAuth, oauth, tokenStore, sessionTokens, consentScreen)
         apiRoutes(etsyApi, userResolver)
     }
 }

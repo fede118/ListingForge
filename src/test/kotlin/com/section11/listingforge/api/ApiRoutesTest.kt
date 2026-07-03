@@ -1,6 +1,5 @@
 package com.section11.listingforge.api
 
-import com.section11.listingforge.auth.MockUserResolver
 import com.section11.listingforge.auth.UserResolver
 import com.section11.listingforge.error.NotAuthenticatedException
 import com.section11.listingforge.etsy.FakeEtsyApi
@@ -41,7 +40,10 @@ class ApiRoutesTest {
 
     @Test
     fun `GET api shop returns the shop id and name as json`() = testApplication {
-        application { testModule(MockUserResolver()) }
+        // A trivial always-signed-in resolver, standing in for whatever real
+        // credential check ran upstream - this test is about the route's JSON
+        // shape, not auth (see the 401 test below for that).
+        application { testModule(UserResolver { "mock-user" }) }
 
         val response = client.get("/api/shop")
 
