@@ -70,6 +70,25 @@ This is also where the deferred question gets answered: `EtsyApiClient` currentl
 sends `x-api-key: keystring:shared_secret`. If `/api/me` 401/403s, switch
 `apiKeyHeader` to send the keystring alone and retry.
 
+## Mock mode — testing the sign-in flow with no Etsy app
+
+Set `APP_MODE=mock` (in `.env`, since `./gradlew run` auto-loads it — a shell-exported
+`APP_MODE=mock` alone won't win, because the run task's `environment(...)` call for
+whatever `.env` sets takes precedence) and run the exact same flow above:
+`/auth/login` → approve → `/api/me`. Nothing is bypassed — `/api/me` still 401s
+until you complete it — but two things are faked so no Etsy app or network call
+is involved:
+
+- `/auth/login` serves a minimal BFF-rendered **stub consent page**
+  ("Approve as mock user") instead of redirecting to Etsy.
+- The code-for-token exchange returns a **canned token** for a fixed demo user
+  (`mock-user`) instead of calling Etsy's `/oauth/token`.
+
+Everything else — PKCE state validation, session cookie / Android bearer
+issuance, `/api/*` auth enforcement — is the real code path. This is what lets
+the client's sign-in UI be built and tested before the Etsy app is approved,
+without the BFF secretly skipping auth.
+
 ## Known production gaps (intentionally out of scope for the skeleton)
 
 - **Cross-site cookies.** `SameSite=Lax` + `secure=false` is correct for

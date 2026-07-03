@@ -4,10 +4,13 @@ package com.section11.listingforge.config
  * Which set of implementations the server runs with.
  *
  *  - PROD: the real thing. Talks to Etsy, enforces auth.
- *  - MOCK: a self-contained fake. Returns canned upstream responses and treats
- *    every caller as a fixed demo user, so the app can exercise the happy path
- *    with no OAuth dance and no real Etsy credentials. Deploy this as a separate
- *    host (e.g. mock.<domain>) and point the app at it to "swap environments".
+ *  - MOCK: a self-contained fake upstream, but a REAL sign-in flow. `/auth/login`
+ *    serves a BFF-rendered stub consent page instead of redirecting to Etsy, and
+ *    the token exchange returns a canned token for a fixed demo user instead of
+ *    calling Etsy - so the app can exercise the happy path with no real Etsy
+ *    credentials, but auth is still enforced: nothing under /api resolves a
+ *    user until that stub flow is completed. Deploy this as a separate host
+ *    (e.g. mock.<domain>) and point the app at it to "swap environments".
  *
  * The mode is chosen once at boot; mock code never runs in a PROD process.
  */

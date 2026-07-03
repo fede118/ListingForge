@@ -21,6 +21,17 @@ data class EtsyTokenResponse(
 )
 
 /**
+ * The OAuth token exchange, as an interface so the upstream can be swapped at
+ * the composition root - mirrors EtsyApi/FakeEtsyApi. EtsyOAuthClient is the
+ * real implementation (talks to Etsy); FakeOAuthClient returns a canned token
+ * record for MOCK mode. AuthRoutes/EtsyApiClient depend only on this type.
+ */
+interface OAuthClient {
+    suspend fun exchangeCode(code: String, verifier: String): TokenRecord
+    suspend fun refresh(refreshToken: String): TokenRecord
+}
+
+/**
  * Talks to Etsy's OAuth token endpoint. PKCE means NO client_secret is sent
  * here â€” the code_verifier is the proof. The numeric Etsy user id is the prefix
  * of the access token (before the first '.'); we adopt it as our primary key.
@@ -28,10 +39,10 @@ data class EtsyTokenResponse(
 class EtsyOAuthClient(
     private val http: HttpClient,
     private val config: AppConfig,
-) {
+) : OAuthClient {
     private val tokenUrl = config.etsy.tokenUrl
 
-    suspend fun exchangeCode(code: String, verifier: String): TokenRecord {
+    override suspend fun exchangeCode(code: String, verifier: String): TokenRecord {
         val response: EtsyTokenResponse = http.submitForm(
             url = tokenUrl,
             formParameters = parameters {
@@ -45,7 +56,7 @@ class EtsyOAuthClient(
         return response.toRecord(fallbackRefresh = null)
     }
 
-    suspend fun refresh(refreshToken: String): TokenRecord {
+    override suspend fun refresh(refreshToken: String): TokenRecord {
         val response: EtsyTokenResponse = http.submitForm(
             url = tokenUrl,
             formParameters = parameters {

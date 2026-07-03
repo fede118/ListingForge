@@ -1,6 +1,6 @@
 ﻿package com.section11.listingforge.etsy
 
-import com.section11.listingforge.auth.EtsyOAuthClient
+import com.section11.listingforge.auth.OAuthClient
 import com.section11.listingforge.config.AppConfig
 import com.section11.listingforge.dto.ShopResponse
 import com.section11.listingforge.error.NotAuthenticatedException
@@ -36,7 +36,7 @@ private const val ETSY_API_KEY_HEADER = "x-api-key"
  */
 class EtsyApiClient(
     private val http: HttpClient,
-    private val oauth: EtsyOAuthClient,
+    private val oauth: OAuthClient,
     private val tokenStore: TokenStore,
     private val config: AppConfig,
 ) : EtsyApi {

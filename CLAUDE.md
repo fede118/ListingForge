@@ -36,10 +36,13 @@ this BFF.
 - `di/AppModule.kt` — **the single composition root.** Every dependency is built here and bound
   **by interface** where one exists. Adding a collaborator means wiring it here, not `new`-ing it
   inside a class. Mode-selected bindings (MOCK ↔ LIVE) live here too.
-- `auth/` — the OAuth/PKCE flow: `AuthRoutes`, `EtsyOAuthClient`, `Pkce`, `PendingAuthStore`
-  (in-memory, keyed by `state`), `SessionTokenService` (signs the HttpOnly cookie),
-  `UserResolver`/`UserSession`. `UserResolver` collapses **either** a session cookie (web) **or**
-  an `Authorization: Bearer` token (Android) to a single `userId`.
+- `auth/` — the OAuth/PKCE flow: `AuthRoutes`, `OAuthClient` (interface; `EtsyOAuthClient` real,
+  `FakeOAuthClient` MOCK), `ConsentScreen` (interface; `EtsyConsentScreen` real,
+  `FakeConsentScreen` MOCK's stub consent page), `Pkce`, `PendingAuthStore` (in-memory, keyed by
+  `state`), `SessionTokenService` (signs the HttpOnly cookie), `UserResolver`/`UserSession`.
+  `UserResolver` collapses **either** a session cookie (web) **or** an `Authorization: Bearer`
+  token (Android) to a single `userId`; `RealUserResolver` is the only implementation, used in
+  **both** modes, so a session must always exist before `/api/*` resolves a user.
 - `api/ApiRoutes.kt` — the **proxied** Etsy endpoints (`/api/me`, `/api/shop`, …). Each resolves a
   userId, loads that user's token, calls Etsy, returns JSON. **The token never crosses back to the
   client.**
@@ -68,7 +71,7 @@ this BFF.
   5 shops). Clean boundaries over speculative abstraction. The owner reads this code to learn —
   clarity over cleverness, and surface non-obvious decisions.
 - **Tests:** `kotlin.test`; use `ktor-server-test-host` for route tests and `FakeEtsyApi` /
-  `MockUserResolver` to test without hitting Etsy. Prefer fakes over mocks.
+  `FakeOAuthClient` / `FakeConsentScreen` to test without hitting Etsy. Prefer fakes over mocks.
 
 ## Hard rules
 
@@ -83,9 +86,16 @@ this BFF.
 ## App modes
 
 `AppConfig.appMode` selects bindings in `AppModule`:
-- **`MOCK`** → `FakeEtsyApi` + `MockUserResolver`: returns success with **no Etsy call and no
-  sign-in**. Lets the client be built before the Etsy app is approved.
-- **`LIVE`** → `EtsyApiClient` + `RealUserResolver`: real OAuth + real Etsy calls.
+- **`MOCK`** → `FakeEtsyApi` + `FakeOAuthClient` + `FakeConsentScreen`, but the **same**
+  `RealUserResolver` as prod. This runs a full, real sign-in flow with no Etsy call: `/auth/login`
+  stores real PKCE state in `PendingAuthStore`, then serves a BFF-rendered stub consent page
+  (`FakeConsentScreen`) instead of redirecting to Etsy. Approving it hits the real
+  `/auth/callback`, which validates state exactly as prod, then exchanges the (fake) code via
+  `FakeOAuthClient` for a canned token — no network call. From there the real cookie/bearer issuance
+  runs unchanged, so `/api/*` genuinely 401s until this flow completes. Lets the client be built
+  and its sign-in UI exercised before the Etsy app is approved, without bypassing auth.
+- **`LIVE`** → `EtsyApiClient` + `EtsyOAuthClient` + `EtsyConsentScreen` + `RealUserResolver`: real
+  OAuth + real Etsy calls.
 
 ## Known open item — `x-api-key`
 
@@ -108,3 +118,12 @@ Live login needs a **browser** (PKCE has a human consent step): open
 `http://localhost:8080/auth/login`, approve, then `http://localhost:8080/api/me`. See `README.md`
 for the full walkthrough and the intentional production gaps (cross-site cookies, pending-auth
 sweep, refresh races).
+
+**Mock mode** also needs the same browser flow — it's a real sign-in, just with a stub consent page
+and a fake token instead of Etsy. Since `./gradlew run` auto-loads `.env` (which sets
+`APP_MODE=prod` on a shell-exported `APP_MODE=mock` too, because the task's `environment(...)`
+call wins over an inherited var), switch modes **in `.env`** (there's a commented `#APP_MODE=mock`
+line already there for this): comment out `APP_MODE=prod`, uncomment `APP_MODE=mock`, then
+`./gradlew run`. No Etsy credentials are needed in this mode — `AppConfig` swaps in placeholder
+Etsy/session config. Open `http://localhost:8080/auth/login`, click **"Approve as mock user"**,
+then `http://localhost:8080/api/me`.
