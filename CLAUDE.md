@@ -70,6 +70,15 @@ this BFF.
 - **Right-size it.** Single process, SQLite, no distributed anything (Etsy caps personal access at
   5 shops). Clean boundaries over speculative abstraction. The owner reads this code to learn —
   clarity over cleverness, and surface non-obvious decisions.
+- **Expression vs block bodies:** use a single-expression body (`fun f() = expr`) only when the
+  whole declaration fits on one line. If the expression would wrap onto the line after `=`, use a
+  block body (`{ return expr }`) instead — the owner finds the wrapped-after-`=` form harder to read.
+- **Comments — good code reads without them.** Names + KDoc carry intent; the "non-obvious
+  decision" above belongs in **KDoc on the declaration**, not an inline aside. Do **not**: annotate
+  a call argument with a trailing `// paramName` (use a **named argument** — `authService = get()`,
+  not `get(), // AuthService`); write a comment that narrates a change or a PR-review reply
+  (`// (fix 4)`, `// was X before`); or restate what the code plainly says. Reserve a bare inline
+  comment for the rare line the code genuinely can't be made to explain itself.
 - **Tests:** `kotlin.test`; use `ktor-server-test-host` for route tests and `FakeEtsyApi` /
   `FakeOAuthClient` / `FakeConsentScreen` to test without hitting Etsy. Prefer fakes over mocks.
 
