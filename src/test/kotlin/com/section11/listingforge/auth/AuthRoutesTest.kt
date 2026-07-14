@@ -157,6 +157,29 @@ class AuthRoutesTest {
     }
 
     @Test
+    fun `postman flow - login then callback renders the bearer token as html`() = testApplication {
+        application { testModule(InMemoryPendingAuthStore(), InMemoryTokenStore()) }
+        val client = createClient { followRedirects = false }
+
+        val loginResponse = client.get("/auth/login?client=postman")
+        val state = stateFrom(loginResponse.bodyAsText())
+
+        val callbackResponse = client.get("/auth/callback?code=mock-auth-code&state=$state")
+        assertEquals(HttpStatusCode.OK, callbackResponse.status)
+        val body = callbackResponse.bodyAsText()
+        assertTrue(body.contains("<code"))
+
+        val token = Regex("""id="token"[^>]*>([^<]+)</code>""").find(body)
+            ?.groupValues?.get(1)
+        assertNotNull(token, "response did not contain a token in the #token <code> element")
+
+        val meResponse = client.get("/api/me") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, meResponse.status)
+    }
+
+    @Test
     fun `callback rejects a state it never issued`() = testApplication {
         application { testModule(InMemoryPendingAuthStore(), InMemoryTokenStore()) }
 
