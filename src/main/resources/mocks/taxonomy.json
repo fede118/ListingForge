@@ -1,0 +1,80 @@
+{
+  "count": 3,
+  "results": [
+    {
+      "id": 1,
+      "level": 0,
+      "name": "Craft Supplies & Tools",
+      "parent_id": null,
+      "children": [
+        {
+          "id": 11,
+          "level": 1,
+          "name": "Patterns & How To",
+          "parent_id": 1,
+          "children": [
+            {
+              "id": 111,
+              "level": 2,
+              "name": "Digital Patterns",
+              "parent_id": 11,
+              "children": []
+            },
+            {
+              "id": 112,
+              "level": 2,
+              "name": "Sewing Patterns",
+              "parent_id": 11,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": 12,
+          "level": 1,
+          "name": "Fabric",
+          "parent_id": 1,
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "level": 0,
+      "name": "Paper & Party Supplies",
+      "parent_id": null,
+      "children": [
+        {
+          "id": 21,
+          "level": 1,
+          "name": "Digital Prints",
+          "parent_id": 2,
+          "children": [
+            {
+              "id": 211,
+              "level": 2,
+              "name": "Wall Art",
+              "parent_id": 21,
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "level": 0,
+      "name": "Home & Living",
+      "parent_id": null,
+      "children": [
+        {
+          "id": 31,
+          "level": 1,
+          "name": "Kitchen & Dining",
+          "parent_id": 3,
+          "children": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 package com.section11.listingforge.etsy
 
 import com.section11.listingforge.dto.ShopResponse
+import com.section11.listingforge.dto.TaxonomyNodeResponse
 import kotlinx.serialization.json.Json
 
 /**
@@ -23,6 +24,16 @@ class FakeEtsyApi : EtsyApi {
         val shop = json.decodeFromString<EtsyShop>(loadMock("shop.json"))
         return ShopResponse(id = shop.shopId, name = shop.shopName)
     }
+
+    // Flattened once and reused: same "taxonomy barely changes" reasoning as
+    // EtsyApiClient's cache, just without the concurrency concern a real
+    // network call would have.
+    private val taxonomy: List<TaxonomyNodeResponse> by lazy {
+        val response = json.decodeFromString<EtsyTaxonomyResponse>(loadMock("taxonomy.json"))
+        flattenTaxonomy(response.results)
+    }
+
+    override suspend fun getTaxonomy(): List<TaxonomyNodeResponse> = taxonomy
 
     private fun loadMock(name: String): String =
         javaClass.getResourceAsStream("/mocks/$name")

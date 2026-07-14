@@ -1,6 +1,7 @@
 package com.section11.listingforge.api
 
 import com.section11.listingforge.auth.UserResolver
+import com.section11.listingforge.dto.TaxonomyResponse
 import com.section11.listingforge.error.NotAuthenticatedException
 import com.section11.listingforge.etsy.EtsyApi
 import io.ktor.http.ContentType
@@ -27,5 +28,11 @@ fun Route.apiRoutes(etsy: EtsyApi, userResolver: UserResolver) {
         val userId = userResolver.resolve(call)
             ?: throw NotAuthenticatedException("Not signed in")
         call.respond(etsy.getShop(userId))
+    }
+
+    get("/api/taxonomy") {
+        userResolver.resolve(call)
+            ?: throw NotAuthenticatedException("Not signed in")
+        call.respond(TaxonomyResponse(etsy.getTaxonomy()))
     }
 }

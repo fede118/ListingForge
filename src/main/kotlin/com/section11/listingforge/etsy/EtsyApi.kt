@@ -1,6 +1,7 @@
 package com.section11.listingforge.etsy
 
 import com.section11.listingforge.dto.ShopResponse
+import com.section11.listingforge.dto.TaxonomyNodeResponse
 
 /**
  * The set of Etsy calls the BFF proxies, as an interface so the upstream can be
@@ -19,4 +20,12 @@ interface EtsyApi {
      * proxy. Unlike getMe this returns a parsed DTO, not raw JSON.
      */
     suspend fun getShop(userId: String): ShopResponse
+
+    /**
+     * Proxies GET /seller-taxonomy/nodes, flattened into a single list with a
+     * human-readable `path` per node. The taxonomy is global, not per-seller,
+     * and Etsy only requires the app key for it (no OAuth token) - so unlike
+     * the other calls here, this one isn't scoped to a userId.
+     */
+    suspend fun getTaxonomy(): List<TaxonomyNodeResponse>
 }

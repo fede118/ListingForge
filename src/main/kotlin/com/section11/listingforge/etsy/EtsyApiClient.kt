@@ -3,6 +3,7 @@
 import com.section11.listingforge.auth.OAuthClient
 import com.section11.listingforge.config.AppConfig
 import com.section11.listingforge.dto.ShopResponse
+import com.section11.listingforge.dto.TaxonomyNodeResponse
 import com.section11.listingforge.error.NotAuthenticatedException
 import com.section11.listingforge.token.TokenStore
 import io.ktor.client.HttpClient
@@ -12,6 +13,8 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.Instant
 
 /**
@@ -44,6 +47,13 @@ class EtsyApiClient(
     private val apiKeyHeader: String
         get() = "${config.etsy.keystring}:${config.etsy.sharedSecret}"
 
+    // Taxonomy is Etsy-wide, not per-seller, and changes rarely, so the first
+    // caller's result is cached for the life of the process. The mutex only
+    // guards the fetch-and-populate race; reads of an already-populated cache
+    // never touch it.
+    private val taxonomyCacheLock = Mutex()
+    private var cachedTaxonomy: List<TaxonomyNodeResponse>? = null
+
     /** Returns a non-expired access token, refreshing + persisting if needed. */
     private suspend fun validAccessToken(userId: String): String {
         val record = tokenStore.get(userId)
@@ -74,6 +84,25 @@ class EtsyApiClient(
             ?: error("Signed-in Etsy user has no shop")
         val shop: EtsyShop = http.get("$base/shops/$shopId") { etsyAuth(token) }.body()
         return ShopResponse(id = shop.shopId, name = shop.shopName)
+    }
+
+    /**
+     * Proxies GET /seller-taxonomy/nodes. Unlike the other calls, Etsy takes
+     * only the app key here - no bearer token, hence no `validAccessToken`
+     * call - so this works even for a caller with no stored Etsy token yet.
+     */
+    override suspend fun getTaxonomy(): List<TaxonomyNodeResponse> {
+        cachedTaxonomy?.let { return it }
+        return taxonomyCacheLock.withLock {
+            cachedTaxonomy ?: fetchTaxonomy().also { cachedTaxonomy = it }
+        }
+    }
+
+    private suspend fun fetchTaxonomy(): List<TaxonomyNodeResponse> {
+        val response: EtsyTaxonomyResponse = http.get("$base/seller-taxonomy/nodes") {
+            header(ETSY_API_KEY_HEADER, apiKeyHeader)
+        }.body()
+        return flattenTaxonomy(response.results)
     }
 
     /** Attaches the bearer token and app key every Etsy API call needs. */
