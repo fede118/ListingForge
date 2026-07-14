@@ -5,8 +5,15 @@ import java.util.concurrent.ConcurrentHashMap
 
 data class PendingAuth(val verifier: String, val client: AuthClient, val createdAt: Instant)
 
-/** Which frontend started the flow; decides how the callback hands control back. */
-enum class AuthClient { WEB, ANDROID }
+/**
+ * Which frontend started the flow; decides how the callback hands control
+ * back. POSTMAN exists purely as a manual-testing convenience: it issues the
+ * same bearer a real ANDROID client would get, but renders it on a page
+ * instead of a deep link, since a desktop browser can't open
+ * `listingforge://auth`. No new security surface - it's the same token, and
+ * it's still gated behind the same human consent step as every other flow.
+ */
+enum class AuthClient { WEB, ANDROID, POSTMAN }
 
 /**
  * Holds in-flight OAuth attempts: state -> the PKCE verifier issued for it.

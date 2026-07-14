@@ -22,3 +22,21 @@ internal data class EtsyShop(
     @SerialName("shop_id") val shopId: Long,
     @SerialName("shop_name") val shopName: String,
 )
+
+/**
+ * From GET /seller-taxonomy/nodes: a category node, nested via `children`.
+ * Etsy's payload carries more fields (level, parent_id, full path ids); only
+ * the ones needed to flatten the tree are modeled here.
+ */
+@Serializable
+internal data class EtsyTaxonomyNode(
+    val id: Long,
+    val name: String,
+    val children: List<EtsyTaxonomyNode> = emptyList(),
+)
+
+/** The top-level envelope GET /seller-taxonomy/nodes returns. */
+@Serializable
+internal data class EtsyTaxonomyResponse(
+    val results: List<EtsyTaxonomyNode>,
+)

@@ -16,6 +16,7 @@ import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
 
 /**
@@ -59,6 +60,26 @@ class ApiRoutesTest {
         application { testModule(UserResolver { null }) }
 
         val response = client.get("/api/shop")
+
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun `GET api taxonomy returns flattened nodes with a breadcrumb path`() = testApplication {
+        application { testModule(UserResolver { "mock-user" }) }
+
+        val response = client.get("/api/taxonomy")
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        val body = response.bodyAsText()
+        assertContains(body, """{"id":111,"name":"Digital Patterns","path":"Craft Supplies & Tools > Patterns & How To > Digital Patterns"}""")
+    }
+
+    @Test
+    fun `GET api taxonomy is 401 when the caller resolves to no user`() = testApplication {
+        application { testModule(UserResolver { null }) }
+
+        val response = client.get("/api/taxonomy")
 
         assertEquals(HttpStatusCode.Unauthorized, response.status)
     }

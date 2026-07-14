@@ -2,6 +2,7 @@
 
 import com.section11.listingforge.config.AppConfig
 import com.section11.listingforge.token.TokenStore
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respondRedirect
 import io.ktor.server.response.respondText
@@ -41,6 +42,7 @@ fun Route.authRoutes(
         // token on a deep link. Default to WEB for backward compatibility.
         val client = when (call.request.queryParameters["client"]?.lowercase()) {
             "android" -> AuthClient.ANDROID
+            "postman" -> AuthClient.POSTMAN
             else -> AuthClient.WEB
         }
         val verifier = Pkce.newVerifier()
@@ -86,6 +88,10 @@ fun Route.authRoutes(
                 val token = sessionTokens.issue(record.userId)
                 call.respondRedirect("${config.client.androidAuthDeepLink}?token=$token")
             }
+            AuthClient.POSTMAN -> {
+                val token = sessionTokens.issue(record.userId)
+                call.respondText(postmanTokenHtml(token), ContentType.Text.Html)
+            }
         }
     }
 
@@ -102,3 +108,20 @@ fun Route.authRoutes(
         call.respondText("Logged out")
     }
 }
+
+/**
+ * Renders the bearer token as selectable text for the person who just
+ * completed consent to copy into Postman by hand. Same style of inline
+ * HTML-in-Kotlin as FakeConsentScreen's stub page.
+ */
+private fun postmanTokenHtml(token: String) = """
+    <!DOCTYPE html>
+    <html>
+      <head><title>ListingForge bearer token</title></head>
+      <body style="font-family: sans-serif; max-width: 32rem; margin: 4rem auto;">
+        <h1>Signed in</h1>
+        <p>Paste this into the Postman collection's <b>token</b> variable:</p>
+        <code id="token" style="display: block; padding: 1rem; background: #f0f0f0; word-break: break-all;">$token</code>
+      </body>
+    </html>
+""".trimIndent()
