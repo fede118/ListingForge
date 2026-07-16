@@ -25,3 +25,48 @@ data class TaxonomyNodeResponse(val id: Long, val name: String, val path: String
 /** GET /api/taxonomy: every node of Etsy's seller taxonomy, flattened. */
 @Serializable
 data class TaxonomyResponse(val nodes: List<TaxonomyNodeResponse>)
+
+/**
+ * POST/PUT /api/templates body: a saved listing-details form, mirroring the
+ * client's ListingDetails exactly. `whoMade`/`whenMade` are opaque Etsy wire
+ * values (e.g. "i_did") - this layer stores them as-is and never re-validates
+ * Etsy's enums; that's the client's job. Only `name` (the template's own
+ * label) is validated here.
+ */
+@Serializable
+data class TemplateRequest(
+    val name: String,
+    val title: String,
+    val description: String,
+    val price: String,
+    val quantity: String,
+    val tags: List<String> = emptyList(),
+    val whoMade: String,
+    val whenMade: String,
+    val taxonomyId: Long? = null,
+    val taxonomyPath: String? = null,
+    val specsText: String,
+)
+
+/** A stored template as returned to the client, with server-assigned id + timestamps. */
+@Serializable
+data class TemplateResponse(
+    val id: Long,
+    val name: String,
+    val title: String,
+    val description: String,
+    val price: String,
+    val quantity: String,
+    val tags: List<String>,
+    val whoMade: String,
+    val whenMade: String,
+    val taxonomyId: Long?,
+    val taxonomyPath: String?,
+    val specsText: String,
+    val createdAt: String,
+    val updatedAt: String,
+)
+
+/** GET /api/templates: every template saved for the active shop. */
+@Serializable
+data class TemplateListResponse(val templates: List<TemplateResponse>)

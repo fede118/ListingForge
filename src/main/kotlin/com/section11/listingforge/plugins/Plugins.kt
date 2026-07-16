@@ -3,7 +3,9 @@
 import com.section11.listingforge.auth.UserSession
 import com.section11.listingforge.config.AppConfig
 import com.section11.listingforge.dto.ErrorResponse
+import com.section11.listingforge.error.InvalidRequestException
 import com.section11.listingforge.error.NotAuthenticatedException
+import com.section11.listingforge.error.ResourceNotFoundException
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
@@ -75,6 +77,18 @@ fun Application.configureStatusPages() {
             call.respond(
                 HttpStatusCode.Unauthorized,
                 ErrorResponse(cause.message ?: "Not authenticated")
+            )
+        }
+        exception<InvalidRequestException> { call, cause ->
+            call.respond(
+                HttpStatusCode.BadRequest,
+                ErrorResponse(cause.message ?: "Invalid request")
+            )
+        }
+        exception<ResourceNotFoundException> { call, cause ->
+            call.respond(
+                HttpStatusCode.NotFound,
+                ErrorResponse(cause.message ?: "Not found")
             )
         }
         // Anything else is a server fault: log the detail, return a generic message

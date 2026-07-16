@@ -38,6 +38,30 @@ object Database {
                     )
                     """.trimIndent()
                 )
+                stmt.executeUpdate(
+                    """
+                    CREATE TABLE IF NOT EXISTS templates (
+                        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                        shop_id       INTEGER NOT NULL,
+                        name          TEXT NOT NULL,
+                        title         TEXT NOT NULL,
+                        description   TEXT NOT NULL,
+                        price         TEXT NOT NULL,
+                        quantity      TEXT NOT NULL,
+                        tags          TEXT NOT NULL,
+                        who_made      TEXT NOT NULL,
+                        when_made     TEXT NOT NULL,
+                        taxonomy_id   INTEGER,
+                        taxonomy_path TEXT,
+                        specs_text    TEXT NOT NULL,
+                        created_at    INTEGER NOT NULL,
+                        updated_at    INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                stmt.executeUpdate(
+                    "CREATE INDEX IF NOT EXISTS idx_templates_shop_id ON templates(shop_id)"
+                )
             }
         }
     }

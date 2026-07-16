@@ -17,6 +17,8 @@ import com.section11.listingforge.db.Database
 import com.section11.listingforge.etsy.EtsyApi
 import com.section11.listingforge.etsy.EtsyApiClient
 import com.section11.listingforge.etsy.FakeEtsyApi
+import com.section11.listingforge.template.SqliteTemplateStore
+import com.section11.listingforge.template.TemplateStore
 import com.section11.listingforge.token.SqliteTokenStore
 import com.section11.listingforge.token.TokenStore
 import io.ktor.client.HttpClient
@@ -55,6 +57,7 @@ fun baseModule(config: AppConfig) = module {
     single<DataSource> { Database.dataSource(get<AppConfig>().db.path) }
 
     single<TokenStore> { SqliteTokenStore(get()) }
+    single<TemplateStore> { SqliteTemplateStore(get()) }
     single<PendingAuthStore> { InMemoryPendingAuthStore() }
 
     single {
