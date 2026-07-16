@@ -1,6 +1,7 @@
 ﻿package com.section11.listingforge
 
 import com.section11.listingforge.api.apiRoutes
+import com.section11.listingforge.api.templateRoutes
 import com.section11.listingforge.auth.ConsentScreen
 import com.section11.listingforge.auth.OAuthClient
 import com.section11.listingforge.auth.PendingAuthStore
@@ -15,6 +16,7 @@ import com.section11.listingforge.plugins.configureCors
 import com.section11.listingforge.plugins.configureSerialization
 import com.section11.listingforge.plugins.configureSessions
 import com.section11.listingforge.plugins.configureStatusPages
+import com.section11.listingforge.template.TemplateStore
 import com.section11.listingforge.token.TokenStore
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
@@ -51,6 +53,7 @@ fun Application.module(config: AppConfig) {
     val pendingAuth by inject<PendingAuthStore>()
     val oauth by inject<OAuthClient>()
     val tokenStore by inject<TokenStore>()
+    val templateStore by inject<TemplateStore>()
     val etsyApi by inject<EtsyApi>()
     val sessionTokens by inject<SessionTokenService>()
     val userResolver by inject<UserResolver>()
@@ -60,5 +63,6 @@ fun Application.module(config: AppConfig) {
         get("/health") { call.respondText("ok") }
         authRoutes(config, pendingAuth, oauth, tokenStore, sessionTokens, consentScreen)
         apiRoutes(etsyApi, userResolver)
+        templateRoutes(templateStore, etsyApi, userResolver)
     }
 }
