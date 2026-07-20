@@ -40,3 +40,43 @@ internal data class EtsyTaxonomyNode(
 internal data class EtsyTaxonomyResponse(
     val results: List<EtsyTaxonomyNode>,
 )
+
+/** From POST /shops/{shop_id}/listings: just the id and state Task 9 surfaces. */
+@Serializable
+internal data class EtsyListing(
+    @SerialName("listing_id") val listingId: Long,
+    val state: String,
+)
+
+/** From POST .../listings/{listing_id}/images: the id and rank Task 9 surfaces. */
+@Serializable
+internal data class EtsyListingImage(
+    @SerialName("listing_image_id") val listingImageId: Long,
+    val rank: Int,
+)
+
+/** From POST .../listings/{listing_id}/files: just the id Task 9 surfaces. */
+@Serializable
+internal data class EtsyListingFile(
+    @SerialName("listing_file_id") val listingFileId: Long,
+)
+
+/**
+ * Etsy's error envelope on a non-2xx response. Both fields are optional and
+ * Etsy is inconsistent about which it populates, so EtsyApiClient falls back
+ * across both before giving up on a readable message.
+ */
+@Serializable
+internal data class EtsyErrorResponse(
+    val error: String? = null,
+    @SerialName("error_description") val errorDescription: String? = null,
+)
+
+/**
+ * The Etsy listing-editor page for a draft, keyed by listing id. Shared by
+ * EtsyApiClient and FakeEtsyApi so both build `editUrl` identically.
+ */
+internal const val ETSY_LISTING_EDITOR_BASE = "https://www.etsy.com/your/shops/me/listing-editor/edit"
+
+/** Fixed on every createDraftListing call - this BFF only ever creates digital listings. */
+internal const val ETSY_LISTING_TYPE_DOWNLOAD = "download"

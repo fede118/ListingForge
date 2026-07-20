@@ -1,5 +1,9 @@
 package com.section11.listingforge.etsy
 
+import com.section11.listingforge.dto.ListingFileResponse
+import com.section11.listingforge.dto.ListingImageResponse
+import com.section11.listingforge.dto.ListingRequest
+import com.section11.listingforge.dto.ListingResponse
 import com.section11.listingforge.dto.ShopResponse
 import com.section11.listingforge.dto.TaxonomyNodeResponse
 
@@ -28,4 +32,35 @@ interface EtsyApi {
      * the other calls here, this one isn't scoped to a userId.
      */
     suspend fun getTaxonomy(): List<TaxonomyNodeResponse>
+
+    /**
+     * Task 9, step 1: proxies Etsy's createDraftListing for the caller's shop,
+     * with `type=download` fixed here - this BFF only ever creates digital
+     * listings. The draft state comes from Etsy's own default; nothing in this
+     * interface can move a listing past draft (no publish method exists).
+     */
+    suspend fun createDraftListing(userId: String, listing: ListingRequest): ListingResponse
+
+    /**
+     * Task 9, step 2: proxies Etsy's uploadListingImage for one image of an
+     * existing draft. `rank` is 1-based (1 = primary photo) and absolute, so a
+     * client retry that re-sends the same rank keeps the final ordering
+     * correct. Throws ResourceNotFoundException if `listingId` doesn't exist or
+     * belongs to another shop.
+     */
+    suspend fun uploadListingImage(
+        userId: String,
+        listingId: Long,
+        image: ByteArray,
+        filename: String,
+        rank: Int,
+    ): ListingImageResponse
+
+    /**
+     * Task 9, step 3: proxies Etsy's uploadListingFile to attach the
+     * buyer-facing digital download (the generated zip) to an existing draft.
+     * Throws ResourceNotFoundException if `listingId` doesn't exist or belongs
+     * to another shop.
+     */
+    suspend fun uploadListingFile(userId: String, listingId: Long, file: ByteArray, filename: String): ListingFileResponse
 }

@@ -1,6 +1,10 @@
 package com.section11.listingforge.api
 
 import com.section11.listingforge.auth.UserResolver
+import com.section11.listingforge.dto.ListingFileResponse
+import com.section11.listingforge.dto.ListingImageResponse
+import com.section11.listingforge.dto.ListingRequest
+import com.section11.listingforge.dto.ListingResponse
 import com.section11.listingforge.dto.ShopResponse
 import com.section11.listingforge.dto.TaxonomyNodeResponse
 import com.section11.listingforge.error.InvalidRequestException
@@ -82,6 +86,24 @@ class TemplateRoutesTest {
         }
 
         override suspend fun getTaxonomy(): List<TaxonomyNodeResponse> = error("not used by template routes")
+
+        override suspend fun createDraftListing(userId: String, listing: ListingRequest): ListingResponse =
+            error("not used by template routes")
+
+        override suspend fun uploadListingImage(
+            userId: String,
+            listingId: Long,
+            image: ByteArray,
+            filename: String,
+            rank: Int,
+        ): ListingImageResponse = error("not used by template routes")
+
+        override suspend fun uploadListingFile(
+            userId: String,
+            listingId: Long,
+            file: ByteArray,
+            filename: String,
+        ): ListingFileResponse = error("not used by template routes")
     }
 
     private fun Application.testModule(userResolver: UserResolver, templates: TemplateStore) {

@@ -70,3 +70,38 @@ data class TemplateResponse(
 /** GET /api/templates: every template saved for the active shop. */
 @Serializable
 data class TemplateListResponse(val templates: List<TemplateResponse>)
+
+/**
+ * POST /api/listings body: the Task 9 submit pipeline's first step. Mirrors
+ * TemplateRequest minus the template-only `name`/`taxonomyPath`/`specsText`,
+ * which never reach Etsy - same field names/types otherwise, so the client can
+ * reuse its ListingDetails model for both. `price`/`quantity` stay strings (the
+ * client pre-validates against Etsy's constraints); EtsyApiClient converts them
+ * when it builds the Etsy form body.
+ */
+@Serializable
+data class ListingRequest(
+    val title: String,
+    val description: String,
+    val price: String,
+    val quantity: String,
+    val tags: List<String> = emptyList(),
+    val whoMade: String,
+    val whenMade: String,
+    val taxonomyId: Long,
+)
+
+/**
+ * POST /api/listings response: the newly created draft. `editUrl` is the Etsy
+ * listing-editor page, surfaced by the client as the open-on-Etsy link.
+ */
+@Serializable
+data class ListingResponse(val listingId: Long, val state: String, val editUrl: String)
+
+/** POST /api/listings/{listingId}/images response. */
+@Serializable
+data class ListingImageResponse(val imageId: Long, val rank: Int)
+
+/** POST /api/listings/{listingId}/file response. */
+@Serializable
+data class ListingFileResponse(val fileId: Long)
