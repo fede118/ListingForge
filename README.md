@@ -89,6 +89,24 @@ issuance, `/api/*` auth enforcement — is the real code path. This is what lets
 the client's sign-in UI be built and tested before the Etsy app is approved,
 without the BFF secretly skipping auth.
 
+## OAuth scopes
+
+`OAUTH_SCOPES` (space-separated, Etsy's scope-list format) defaults to
+`shops_r listings_w`: `shops_r` covers the read calls (`/api/me`, `/api/shop`),
+`listings_w` is required for the Task 9 submit pipeline (create draft listing,
+upload image, upload file) — without it Etsy answers those calls with a 403.
+
+**A token already stored keeps whatever scopes it was issued with.** Widening
+this list doesn't retroactively grant an already-signed-in seller the new
+scope — after changing it (or pulling this change for the first time), sign
+out and go through `/auth/login` again so the new consent screen requests
+`listings_w` and a fresh token is stored with it.
+
+Any Etsy status this BFF doesn't have a specific mapping for (a 403 from a
+missing scope is the most likely case) is returned to the client as a clean
+**502 Bad Gateway** with Etsy's own error message in the JSON body, rather
+than an opaque 500 — see `EtsyUpstreamException` / `configureStatusPages`.
+
 ## Known production gaps (intentionally out of scope for the skeleton)
 
 - **Cross-site cookies.** `SameSite=Lax` + `secure=false` is correct for

@@ -8,6 +8,7 @@ import com.section11.listingforge.dto.ListingRequest
 import com.section11.listingforge.dto.ListingResponse
 import com.section11.listingforge.dto.ShopResponse
 import com.section11.listingforge.dto.TaxonomyNodeResponse
+import com.section11.listingforge.error.EtsyUpstreamException
 import com.section11.listingforge.error.InvalidRequestException
 import com.section11.listingforge.error.NotAuthenticatedException
 import com.section11.listingforge.error.ResourceNotFoundException
@@ -199,14 +200,15 @@ class EtsyApiClient(
      * The shared response handling for Task 9's write calls: success parses the
      * body, a 404 (only meaningful when a listing id is in the URL) becomes
      * ResourceNotFoundException, a 400 passes Etsy's own message through as
-     * InvalidRequestException, and anything else is an unexpected upstream
-     * fault - left to the generic StatusPages handler as a 500.
+     * InvalidRequestException, and anything else - most notably a 403 from a
+     * token missing the listings_w scope - becomes EtsyUpstreamException so
+     * StatusPages can surface it as a clean 502 instead of an unhandled 500.
      */
     private suspend inline fun <reified T> HttpResponse.etsyBodyOrThrow(notFoundMessage: String? = null): T = when {
         status.isSuccess() -> body()
         status == HttpStatusCode.NotFound && notFoundMessage != null -> throw ResourceNotFoundException(notFoundMessage)
         status == HttpStatusCode.BadRequest -> throw InvalidRequestException(etsyErrorMessage())
-        else -> error("Unexpected Etsy response: $status")
+        else -> throw EtsyUpstreamException(status.value, etsyErrorMessage())
     }
 
     private suspend fun HttpResponse.etsyErrorMessage(): String {

@@ -3,6 +3,7 @@
 import com.section11.listingforge.auth.UserSession
 import com.section11.listingforge.config.AppConfig
 import com.section11.listingforge.dto.ErrorResponse
+import com.section11.listingforge.error.EtsyUpstreamException
 import com.section11.listingforge.error.InvalidRequestException
 import com.section11.listingforge.error.NotAuthenticatedException
 import com.section11.listingforge.error.ResourceNotFoundException
@@ -89,6 +90,17 @@ fun Application.configureStatusPages() {
             call.respond(
                 HttpStatusCode.NotFound,
                 ErrorResponse(cause.message ?: "Not found")
+            )
+        }
+        // Etsy answered with a status this BFF has no specific mapping for (e.g.
+        // 403 from a token missing a required scope). Not our fault, not the
+        // caller's - a bad gateway, with Etsy's own message passed through so
+        // the client's failed-step UI can show why.
+        exception<EtsyUpstreamException> { call, cause ->
+            log.warn("Etsy returned status ${cause.etsyStatus}: ${cause.message}")
+            call.respond(
+                HttpStatusCode.BadGateway,
+                ErrorResponse(cause.message ?: "Etsy rejected the request")
             )
         }
         // Anything else is a server fault: log the detail, return a generic message

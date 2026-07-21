@@ -7,6 +7,7 @@ import com.section11.listingforge.dto.ListingRequest
 import com.section11.listingforge.dto.ListingResponse
 import com.section11.listingforge.dto.ShopResponse
 import com.section11.listingforge.dto.TaxonomyNodeResponse
+import com.section11.listingforge.error.EtsyUpstreamException
 import com.section11.listingforge.error.InvalidRequestException
 import com.section11.listingforge.error.NotAuthenticatedException
 import com.section11.listingforge.error.ResourceNotFoundException
@@ -44,7 +45,10 @@ import kotlin.test.assertEquals
 class ListingRoutesTest {
 
     /** Only listingId 1 "exists"; createDraftListing always mints listingId 42. */
-    private class SubmitPipelineFakeEtsyApi(private val rejectDraft: Boolean = false) : EtsyApi {
+    private class SubmitPipelineFakeEtsyApi(
+        private val rejectDraft: Boolean = false,
+        private val upstreamErrorStatus: Int? = null,
+    ) : EtsyApi {
         var lastImageBytes: ByteArray? = null
         var lastImageRank: Int? = null
         var lastFileBytes: ByteArray? = null
@@ -56,6 +60,9 @@ class ListingRoutesTest {
 
         override suspend fun createDraftListing(userId: String, listing: ListingRequest): ListingResponse {
             if (rejectDraft) throw InvalidRequestException("Etsy rejected the listing: price too low")
+            upstreamErrorStatus?.let {
+                throw EtsyUpstreamException(it, "Etsy rejected the request: insufficient permissions")
+            }
             return ListingResponse(listingId = 42, state = "draft", editUrl = "https://www.etsy.com/your/shops/me/listing-editor/edit/42")
         }
 
@@ -96,6 +103,9 @@ class ListingRoutesTest {
             }
             exception<ResourceNotFoundException> { call, cause ->
                 call.respond(HttpStatusCode.NotFound, mapOf("error" to cause.message))
+            }
+            exception<EtsyUpstreamException> { call, cause ->
+                call.respond(HttpStatusCode.BadGateway, mapOf("error" to cause.message))
             }
         }
         routing { listingRoutes(etsy, userResolver) }
@@ -153,6 +163,21 @@ class ListingRoutesTest {
 
         assertEquals(HttpStatusCode.BadRequest, response.status)
         assertContains(response.bodyAsText(), "price too low")
+    }
+
+    @Test
+    fun `POST api listings passes an unexpected Etsy status through as 502`() = testApplication {
+        application {
+            testModule(UserResolver { "user-a" }, SubmitPipelineFakeEtsyApi(upstreamErrorStatus = 403))
+        }
+
+        val response = client.post("/api/listings") {
+            contentType(ContentType.Application.Json)
+            setBody(draftRequestBody)
+        }
+
+        assertEquals(HttpStatusCode.BadGateway, response.status)
+        assertContains(response.bodyAsText(), "insufficient permissions")
     }
 
     @Test
