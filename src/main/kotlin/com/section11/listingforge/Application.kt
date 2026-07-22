@@ -1,6 +1,7 @@
 ﻿package com.section11.listingforge
 
 import com.section11.listingforge.api.apiRoutes
+import com.section11.listingforge.api.listingRoutes
 import com.section11.listingforge.api.templateRoutes
 import com.section11.listingforge.auth.ConsentScreen
 import com.section11.listingforge.auth.OAuthClient
@@ -64,5 +65,6 @@ fun Application.module(config: AppConfig) {
         authRoutes(config, pendingAuth, oauth, tokenStore, sessionTokens, consentScreen)
         apiRoutes(etsyApi, userResolver)
         templateRoutes(templateStore, etsyApi, userResolver)
+        listingRoutes(etsyApi, userResolver)
     }
 }

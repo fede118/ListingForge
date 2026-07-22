@@ -1,8 +1,13 @@
 package com.section11.listingforge.etsy
 
+import com.section11.listingforge.dto.ListingFileResponse
+import com.section11.listingforge.dto.ListingImageResponse
+import com.section11.listingforge.dto.ListingRequest
+import com.section11.listingforge.dto.ListingResponse
 import com.section11.listingforge.dto.ShopResponse
 import com.section11.listingforge.dto.TaxonomyNodeResponse
 import kotlinx.serialization.json.Json
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Mock upstream. Returns canned success responses loaded from JSON files under
@@ -35,9 +40,44 @@ class FakeEtsyApi : EtsyApi {
 
     override suspend fun getTaxonomy(): List<TaxonomyNodeResponse> = taxonomy
 
+    // Task 9 fixtures: no real listing exists in mock mode, so these just hand
+    // back incrementing ids that look like Etsy's rather than validating
+    // anything about userId/listingId - there's nothing to 404 against.
+    private val nextListingId = AtomicLong(FIRST_MOCK_LISTING_ID)
+    private val nextImageId = AtomicLong(FIRST_MOCK_IMAGE_ID)
+    private val nextFileId = AtomicLong(FIRST_MOCK_FILE_ID)
+
+    override suspend fun createDraftListing(userId: String, listing: ListingRequest): ListingResponse {
+        val listingId = nextListingId.getAndIncrement()
+        return ListingResponse(
+            listingId = listingId,
+            state = "draft",
+            editUrl = "$ETSY_LISTING_EDITOR_BASE/$listingId",
+        )
+    }
+
+    override suspend fun uploadListingImage(
+        userId: String,
+        listingId: Long,
+        image: ByteArray,
+        filename: String,
+        rank: Int,
+    ): ListingImageResponse = ListingImageResponse(imageId = nextImageId.getAndIncrement(), rank = rank)
+
+    override suspend fun uploadListingFile(
+        userId: String,
+        listingId: Long,
+        file: ByteArray,
+        filename: String,
+    ): ListingFileResponse = ListingFileResponse(fileId = nextFileId.getAndIncrement())
+
     private fun loadMock(name: String): String =
         javaClass.getResourceAsStream("/mocks/$name")
             ?.bufferedReader()
             ?.use { it.readText() }
             ?: error("Missing mock resource: /mocks/$name")
 }
+
+private const val FIRST_MOCK_LISTING_ID = 555000001L
+private const val FIRST_MOCK_IMAGE_ID = 777000001L
+private const val FIRST_MOCK_FILE_ID = 999000001L

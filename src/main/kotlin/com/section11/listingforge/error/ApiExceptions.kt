@@ -13,3 +13,12 @@ class InvalidRequestException(message: String) : RuntimeException(message)
 
 /** The referenced resource doesn't exist, or isn't visible to the caller. -> 404 */
 class ResourceNotFoundException(message: String) : RuntimeException(message)
+
+/**
+ * Etsy answered a proxied call with a status this BFF doesn't have a specific
+ * mapping for (i.e. not the 400/404 cases each Etsy call already handles) -
+ * most commonly a 403 from a token that's missing a required OAuth scope.
+ * Carries Etsy's own status + message so the client's failed-step UI can show
+ * why, instead of surfacing as an opaque 500. -> 502
+ */
+class EtsyUpstreamException(val etsyStatus: Int, message: String) : RuntimeException(message)
