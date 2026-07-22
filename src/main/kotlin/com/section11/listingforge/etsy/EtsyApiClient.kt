@@ -24,6 +24,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -163,7 +164,13 @@ class EtsyApiClient(
         return ListingImageResponse(imageId = uploaded.listingImageId, rank = uploaded.rank)
     }
 
-    /** Task 9, step 3. Same ownership check as uploadListingImage - a foreign or unknown listingId 404s. */
+    /**
+     * Task 9, step 3. Same ownership check as uploadListingImage - a foreign or unknown listingId
+     * 404s. The file part carries an explicit `application/zip` content type: unlike images, an
+     * untyped octet-stream part isn't reliably accepted by Etsy's file endpoint (observed as its
+     * generic "an error occurred while uploading your file" 400), and the buyer download this
+     * endpoint exists for is always the generated zip.
+     */
     override suspend fun uploadListingFile(
         userId: String,
         listingId: Long,
@@ -179,7 +186,10 @@ class EtsyApiClient(
                 append(
                     "file",
                     file,
-                    Headers.build { append(HttpHeaders.ContentDisposition, "filename=\"$filename\"") },
+                    Headers.build {
+                        append(HttpHeaders.ContentType, ContentType.Application.Zip.toString())
+                        append(HttpHeaders.ContentDisposition, "filename=\"$filename\"")
+                    },
                 )
             }
         ) {
