@@ -17,6 +17,8 @@ import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.plugins.statuspages.StatusPages
+import io.ktor.server.request.httpMethod
+import io.ktor.server.request.path
 import io.ktor.server.response.respond
 import io.ktor.server.sessions.SessionTransportTransformerMessageAuthentication
 import io.ktor.server.sessions.Sessions
@@ -81,6 +83,7 @@ fun Application.configureStatusPages() {
             )
         }
         exception<InvalidRequestException> { call, cause ->
+            log.warn("400 on ${call.request.httpMethod.value} ${call.request.path()}: ${cause.message}")
             call.respond(
                 HttpStatusCode.BadRequest,
                 ErrorResponse(cause.message ?: "Invalid request")
