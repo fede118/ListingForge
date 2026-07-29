@@ -4,6 +4,7 @@ import com.section11.listingforge.auth.OAuthClient
 import com.section11.listingforge.config.AppConfig
 import com.section11.listingforge.dto.ListingFileResponse
 import com.section11.listingforge.dto.ListingImageResponse
+import com.section11.listingforge.dto.ListingListResponse
 import com.section11.listingforge.dto.ListingRequest
 import com.section11.listingforge.dto.ListingResponse
 import com.section11.listingforge.dto.ShopResponse
@@ -22,6 +23,7 @@ import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.parameter
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
@@ -198,6 +200,23 @@ class EtsyApiClient(
         }
         val uploaded = response.etsyBodyOrThrow<EtsyListingFile>("Listing $listingId not found")
         return ListingFileResponse(fileId = uploaded.listingFileId)
+    }
+
+    /**
+     * Task 12. `includes=Images` is required - without it Etsy's response
+     * carries no image data at all, leaving nothing to map to a thumbnail.
+     */
+    override suspend fun getListings(userId: String, state: String, limit: Int, offset: Int): ListingListResponse {
+        val token = validAccessToken(userId)
+        val shopId = resolveShopId(token)
+        val page: EtsyListingsPage = http.get("$base/shops/$shopId/listings") {
+            etsyAuth(token)
+            parameter("state", state)
+            parameter("limit", limit)
+            parameter("offset", offset)
+            parameter("includes", "Images")
+        }.body()
+        return ListingListResponse(count = page.count, listings = page.results.map { it.toResponse() })
     }
 
     /** GET /users/me, just for its shop_id. Every shop-scoped call pivots through this. */

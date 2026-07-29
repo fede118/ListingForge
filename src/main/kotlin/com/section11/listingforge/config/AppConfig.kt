@@ -92,12 +92,14 @@ data class SessionConfig(
  * are required in prod and fail fast if missing; the endpoint URLs default to
  * the real production hosts and are the single source of truth for them.
  *
- * `oauthScopes` defaults to `shops_r listings_w` (space-separated, Etsy's
- * scope-list format) - `shops_r` for the read endpoints, `listings_w` for
- * Task 9's create-draft-listing/upload-image/upload-file calls. A token
+ * `oauthScopes` defaults to `shops_r listings_w listings_r` (space-separated,
+ * Etsy's scope-list format) - `shops_r` for the read endpoints, `listings_w`
+ * for Task 9's create-draft-listing/upload-image/upload-file calls, and
+ * `listings_r` for Task 12's browse-drafts read (`getListingsByShop`). A token
  * that's already stored keeps whatever scopes it was issued with, so widening
- * this doesn't retroactively grant a signed-in seller `listings_w` - they
- * must sign out and re-consent for the new scope to take effect.
+ * this doesn't retroactively grant a signed-in seller the new scope - they
+ * must sign out (which drops the stored token) and re-run `/auth/login` so
+ * the new consent screen requests it and a fresh token is stored with it.
  *
  * `mock()` supplies throwaway placeholders. In mock mode none of these are ever
  * used (FakeEtsyApi/MockUserResolver replace the real clients), so this exists
@@ -122,7 +124,7 @@ data class EtsyConfig(
             keystring = keystring,
             sharedSecret = sharedSecret,
             redirectUri = redirectUri,
-            oauthScopes = Env.optional("OAUTH_SCOPES", "shops_r listings_w"),
+            oauthScopes = Env.optional("OAUTH_SCOPES", "shops_r listings_w listings_r"),
             authorizeUrl = Env.optional("ETSY_AUTHORIZE_URL", DEFAULT_AUTHORIZE_URL),
             tokenUrl = Env.optional("ETSY_TOKEN_URL", DEFAULT_TOKEN_URL),
             apiBase = Env.optional("ETSY_API_BASE", DEFAULT_API_BASE),

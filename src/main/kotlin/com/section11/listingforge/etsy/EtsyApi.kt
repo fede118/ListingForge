@@ -2,6 +2,7 @@ package com.section11.listingforge.etsy
 
 import com.section11.listingforge.dto.ListingFileResponse
 import com.section11.listingforge.dto.ListingImageResponse
+import com.section11.listingforge.dto.ListingListResponse
 import com.section11.listingforge.dto.ListingRequest
 import com.section11.listingforge.dto.ListingResponse
 import com.section11.listingforge.dto.ShopResponse
@@ -63,4 +64,13 @@ interface EtsyApi {
      * to another shop.
      */
     suspend fun uploadListingFile(userId: String, listingId: Long, file: ByteArray, filename: String): ListingFileResponse
+
+    /**
+     * Task 12: proxies Etsy's getListingsByShop for the caller's shop,
+     * browse-only and paged. Always requests `includes=Images` - Etsy omits
+     * images entirely otherwise, and the client needs a thumbnail per row.
+     * `state` is passed straight through to Etsy as-is; validating it against
+     * a supported set is the route's job, not this method's.
+     */
+    suspend fun getListings(userId: String, state: String, limit: Int, offset: Int): ListingListResponse
 }
