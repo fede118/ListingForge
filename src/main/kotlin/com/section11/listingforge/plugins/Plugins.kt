@@ -50,9 +50,18 @@ fun Application.configureSessions(config: AppConfig) {
     }
 }
 
+/**
+ * Cross-origin access for the web client, which runs on its own origin (the
+ * frontend origin in [AppConfig]) rather than being served by this BFF.
+ *
+ * Every method the API exposes must be allowlisted here, not just the ones
+ * Ktor's CORS plugin permits by default (GET/POST/HEAD): the browser sends a
+ * preflight OPTIONS for PUT and DELETE, and a method missing from this list is
+ * rejected at the preflight with 403 — before the route runs, so the failure
+ * shows up as a CORS error with no trace of the real request. Android issues no
+ * preflight, so a gap here is invisible on that platform.
+ */
 fun Application.configureCors(config: AppConfig) {
-    // Forward-looking: only matters once a separate-origin web client calls in.
-    // Same-origin browser testing doesn't trigger CORS at all.
     val host = config.client.frontendOrigin
         .removePrefix("https://")
         .removePrefix("http://")
@@ -63,6 +72,8 @@ fun Application.configureCors(config: AppConfig) {
         allowCredentials = true                     // required so cookies can cross origin
         allowMethod(HttpMethod.Get)
         allowMethod(HttpMethod.Post)
+        allowMethod(HttpMethod.Put)
+        allowMethod(HttpMethod.Delete)
     }
 }
 
