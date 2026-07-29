@@ -363,6 +363,32 @@ class ListingRoutesTest {
     }
 
     /**
+     * Etsy rejects these two itself, so forwarding them would turn a caller's
+     * paging mistake into a 502 upstream failure. They belong to the caller.
+     */
+    @Test
+    fun `GET api listings is 400 for a limit outside Etsy's accepted range`() = testApplication {
+        application { testModule(UserResolver { "user-a" }, SubmitPipelineFakeEtsyApi()) }
+
+        listOf("0", "101").forEach { limit ->
+            val response = client.get("/api/listings?limit=$limit")
+
+            assertEquals(HttpStatusCode.BadRequest, response.status, "limit=$limit should be rejected")
+            assertContains(response.bodyAsText(), "between 1 and 100")
+        }
+    }
+
+    @Test
+    fun `GET api listings is 400 for a negative offset`() = testApplication {
+        application { testModule(UserResolver { "user-a" }, SubmitPipelineFakeEtsyApi()) }
+
+        val response = client.get("/api/listings?offset=-1")
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertContains(response.bodyAsText(), "non-negative")
+    }
+
+    /**
      * A bare `append(key, ByteArray)` produces a multipart FormItem, not a
      * FileItem - the CIO parser only classifies a part as a file when its
      * Content-Disposition carries `filename`, exactly like a real browser/app

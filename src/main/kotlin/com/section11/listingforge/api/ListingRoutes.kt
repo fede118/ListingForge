@@ -31,8 +31,8 @@ fun Route.listingRoutes(etsy: EtsyApi, userResolver: UserResolver) {
     get("/api/listings") {
         val userId = call.requireUserId(userResolver)
         val state = call.listingState()
-        val limit = call.pagingParam("limit", DEFAULT_LISTINGS_LIMIT)
-        val offset = call.pagingParam("offset", DEFAULT_LISTINGS_OFFSET)
+        val limit = call.limitParam()
+        val offset = call.offsetParam()
         call.respond(etsy.getListings(userId, state, limit, offset))
     }
 
@@ -71,22 +71,37 @@ private fun ApplicationCall.listingId(): Long =
  * - an unsupported value 400s rather than passing arbitrary input through to
  * Etsy, which would return states this BFF has never mapped or tested.
  */
-private val SUPPORTED_LISTING_STATES = setOf("draft")
+private const val DEFAULT_LISTING_STATE = "draft"
+private val SUPPORTED_LISTING_STATES = setOf(DEFAULT_LISTING_STATE)
 private const val DEFAULT_LISTINGS_LIMIT = 25
 private const val DEFAULT_LISTINGS_OFFSET = 0
+private const val MAX_LISTINGS_LIMIT = 100
 
 private fun ApplicationCall.listingState(): String {
-    val state = request.queryParameters["state"] ?: "draft"
+    val state = request.queryParameters["state"] ?: DEFAULT_LISTING_STATE
     if (state !in SUPPORTED_LISTING_STATES) {
-        throw InvalidRequestException("Unsupported state '$state': only 'draft' is supported")
+        throw InvalidRequestException(
+            "Unsupported state '$state': only '$DEFAULT_LISTING_STATE' is supported"
+        )
     }
     return state
 }
 
-private fun ApplicationCall.pagingParam(name: String, default: Int): Int {
-    val raw = request.queryParameters[name] ?: return default
+/**
+ * Etsy rejects a `limit` of 0 or above 100, so both are caught here instead of
+ * being forwarded - otherwise a caller's paging mistake comes back as a 502
+ * upstream failure rather than a 400 naming the parameter that was wrong.
+ */
+private fun ApplicationCall.limitParam(): Int {
+    val raw = request.queryParameters["limit"] ?: return DEFAULT_LISTINGS_LIMIT
+    return raw.toIntOrNull()?.takeIf { it in 1..MAX_LISTINGS_LIMIT }
+        ?: throw InvalidRequestException("'limit' must be an integer between 1 and $MAX_LISTINGS_LIMIT")
+}
+
+private fun ApplicationCall.offsetParam(): Int {
+    val raw = request.queryParameters["offset"] ?: return DEFAULT_LISTINGS_OFFSET
     return raw.toIntOrNull()?.takeIf { it >= 0 }
-        ?: throw InvalidRequestException("'$name' must be a non-negative integer")
+        ?: throw InvalidRequestException("'offset' must be a non-negative integer")
 }
 
 private data class ImageUpload(val bytes: ByteArray, val filename: String, val rank: Int)

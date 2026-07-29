@@ -209,13 +209,15 @@ class EtsyApiClient(
     override suspend fun getListings(userId: String, state: String, limit: Int, offset: Int): ListingListResponse {
         val token = validAccessToken(userId)
         val shopId = resolveShopId(token)
-        val page: EtsyListingsPage = http.get("$base/shops/$shopId/listings") {
+        val response = http.get("$base/shops/$shopId/listings") {
             etsyAuth(token)
             parameter("state", state)
             parameter("limit", limit)
             parameter("offset", offset)
             parameter("includes", "Images")
-        }.body()
+            expectSuccess = false
+        }
+        val page = response.etsyBodyOrThrow<EtsyListingsPage>()
         return ListingListResponse(count = page.count, listings = page.results.map { it.toResponse() })
     }
 
@@ -226,12 +228,14 @@ class EtsyApiClient(
     }
 
     /**
-     * The shared response handling for Task 9's write calls: success parses the
-     * body, a 404 (only meaningful when a listing id is in the URL) becomes
-     * ResourceNotFoundException, a 400 passes Etsy's own message through as
-     * InvalidRequestException, and anything else - most notably a 403 from a
-     * token missing the listings_w scope - becomes EtsyUpstreamException so
-     * StatusPages can surface it as a clean 502 instead of an unhandled 500.
+     * The shared response handling for Task 9's write calls and Task 12's
+     * browse read: success parses the body, a 404 (only meaningful when a
+     * listing id is in the URL) becomes ResourceNotFoundException, a 400 passes
+     * Etsy's own message through as InvalidRequestException, and anything else -
+     * most notably a 403 from a token missing listings_w (write) or listings_r
+     * (browse) - becomes EtsyUpstreamException so StatusPages can surface it as
+     * a clean 502 instead of an unhandled 500. Callers must set
+     * `expectSuccess = false` on the request, or Ktor throws before this runs.
      */
     private suspend inline fun <reified T> HttpResponse.etsyBodyOrThrow(notFoundMessage: String? = null): T = when {
         status.isSuccess() -> body()
