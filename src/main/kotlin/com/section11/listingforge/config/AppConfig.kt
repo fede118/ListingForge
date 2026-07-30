@@ -28,6 +28,8 @@ internal object Env {
 
     fun optional(name: String, default: String): String =
         System.getenv(name) ?: default
+
+    fun optionalOrNull(name: String): String? = System.getenv(name)
 }
 
 /** Where the server itself binds. */
@@ -59,6 +61,24 @@ data class ClientConfig(
             frontendOrigin = Env.optional("FRONTEND_ORIGIN", "http://localhost:5173"),
             androidAuthDeepLink = Env.optional("ANDROID_AUTH_DEEPLINK", DEFAULT_ANDROID_AUTH_DEEPLINK),
         )
+    }
+}
+
+/**
+ * Where the built wasmJS bundle (index.html, webApp.js, the .wasm binaries incl.
+ * skiko's, styles.css, Compose resources) lives on disk, if this BFF is also
+ * serving it same-origin (Task 13). The BFF never builds this folder - it's
+ * produced by the client repo's `:webApp:wasmJsBrowserDistribution` and copied
+ * or pointed at here.
+ *
+ * `dir` is optional and nullable on purpose: an API-only dev run (webpack dev
+ * server serving the app instead) and the test suite need no bundle on disk, so
+ * unset means "register no static route at all" rather than pointing at a
+ * directory that doesn't exist.
+ */
+data class WebAppConfig(val dir: String?) {
+    companion object {
+        fun fromEnv() = WebAppConfig(dir = Env.optionalOrNull("WEBAPP_DIR"))
     }
 }
 
@@ -160,6 +180,7 @@ data class AppConfig(
     val client: ClientConfig,
     val session: SessionConfig,
     val etsy: EtsyConfig,
+    val webApp: WebAppConfig = WebAppConfig(dir = null),
 ) {
     companion object {
         fun fromEnv(): AppConfig {
@@ -174,6 +195,7 @@ data class AppConfig(
                 client = ClientConfig.fromEnv(),
                 session = if (mode == AppMode.MOCK) SessionConfig.mock() else SessionConfig.fromEnv(),
                 etsy = if (mode == AppMode.MOCK) EtsyConfig.mock() else EtsyConfig.fromEnv(),
+                webApp = WebAppConfig.fromEnv(),
             )
         }
     }
