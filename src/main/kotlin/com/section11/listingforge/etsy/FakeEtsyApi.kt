@@ -2,8 +2,10 @@ package com.section11.listingforge.etsy
 
 import com.section11.listingforge.dto.ListingFileResponse
 import com.section11.listingforge.dto.ListingImageResponse
+import com.section11.listingforge.dto.ListingListResponse
 import com.section11.listingforge.dto.ListingRequest
 import com.section11.listingforge.dto.ListingResponse
+import com.section11.listingforge.dto.ListingSummaryResponse
 import com.section11.listingforge.dto.ShopResponse
 import com.section11.listingforge.dto.TaxonomyNodeResponse
 import kotlinx.serialization.json.Json
@@ -70,6 +72,23 @@ class FakeEtsyApi : EtsyApi {
         file: ByteArray,
         filename: String,
     ): ListingFileResponse = ListingFileResponse(fileId = nextFileId.getAndIncrement())
+
+    // Loaded once and reused, same "barely changes for one demo shop" reasoning
+    // as the taxonomy cache. Kept as the raw per-state rows (not pre-filtered)
+    // so getListings can apply state/limit/offset the same way a real Etsy call
+    // would, rather than always returning the same fixed page.
+    private val allListings: List<ListingSummaryWithState> by lazy {
+        val page = json.decodeFromString<EtsyListingsPage>(loadMock("listings.json"))
+        page.results.map { ListingSummaryWithState(it.state, it.toResponse()) }
+    }
+
+    override suspend fun getListings(userId: String, state: String, limit: Int, offset: Int): ListingListResponse {
+        val matching = allListings.filter { it.state == state }
+        val page = matching.drop(offset).take(limit).map { it.response }
+        return ListingListResponse(count = matching.size, listings = page)
+    }
+
+    private data class ListingSummaryWithState(val state: String, val response: ListingSummaryResponse)
 
     private fun loadMock(name: String): String =
         javaClass.getResourceAsStream("/mocks/$name")

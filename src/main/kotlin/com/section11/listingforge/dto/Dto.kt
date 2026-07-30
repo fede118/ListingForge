@@ -105,3 +105,31 @@ data class ListingImageResponse(val imageId: Long, val rank: Int)
 /** POST /api/listings/{listingId}/file response. */
 @Serializable
 data class ListingFileResponse(val fileId: Long)
+
+/**
+ * GET /api/listings row: Task 12's browse-drafts read, trimmed to what the
+ * client's list UI needs. `price` stays the same plain decimal-string
+ * convention as ListingRequest/TemplateRequest (Etsy's own amount/divisor
+ * money type is converted server-side - see EtsyMoney.toDecimalString).
+ * `editUrl` is the same Etsy listing-editor page ListingResponse links to -
+ * this is browse-only, so opening it is as far as this DTO goes.
+ * `thumbnailUrl` is null when the listing has no images yet.
+ */
+@Serializable
+data class ListingSummaryResponse(
+    val listingId: Long,
+    val title: String,
+    val state: String,
+    val price: String,
+    val quantity: Int,
+    val editUrl: String,
+    val thumbnailUrl: String?,
+)
+
+/**
+ * GET /api/listings response envelope. `count` is Etsy's total matching the
+ * query (state filter applied) across all pages, not just this page's size -
+ * it's what lets the client know whether to page again.
+ */
+@Serializable
+data class ListingListResponse(val count: Int, val listings: List<ListingSummaryResponse>)

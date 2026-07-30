@@ -62,6 +62,56 @@ internal data class EtsyListingFile(
 )
 
 /**
+ * Etsy's money type: an integer `amount` over a power-of-ten `divisor`
+ * (e.g. amount=450, divisor=100 -> $4.50), never a plain decimal. Read on
+ * GET /shops/{shop_id}/listings; see `toDecimalString` for the conversion.
+ */
+@Serializable
+internal data class EtsyMoney(
+    val amount: Long,
+    val divisor: Long,
+    @SerialName("currency_code") val currencyCode: String? = null,
+)
+
+/**
+ * One image entry on a listing fetched with `includes=Images` - omitted by
+ * Etsy entirely otherwise. Only the 170x135 rendition is modeled: it's the
+ * size a compact list-row thumbnail needs, and Etsy returns images ordered
+ * by rank with the primary photo first.
+ */
+@Serializable
+internal data class EtsyListingSummaryImage(
+    @SerialName("listing_image_id") val listingImageId: Long,
+    @SerialName("url_170x135") val url170x135: String? = null,
+)
+
+/**
+ * Task 12: one row from GET /shops/{shop_id}/listings - a browse-only view
+ * of a shop's listings. Only the fields the drafts list surfaces are
+ * modeled; Etsy's full Listing resource carries much more.
+ */
+@Serializable
+internal data class EtsyListingSummary(
+    @SerialName("listing_id") val listingId: Long,
+    val title: String,
+    val state: String,
+    val price: EtsyMoney,
+    val quantity: Int,
+    val images: List<EtsyListingSummaryImage> = emptyList(),
+)
+
+/**
+ * The envelope GET /shops/{shop_id}/listings returns. `count` is the total
+ * number of listings matching the query across all pages, not this page's
+ * size - it's what lets a client know whether to page again.
+ */
+@Serializable
+internal data class EtsyListingsPage(
+    val count: Int,
+    val results: List<EtsyListingSummary>,
+)
+
+/**
  * Etsy's error envelope on a non-2xx response. Both fields are optional and
  * Etsy is inconsistent about which it populates, so EtsyApiClient falls back
  * across both before giving up on a readable message.

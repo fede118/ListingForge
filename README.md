@@ -92,15 +92,19 @@ without the BFF secretly skipping auth.
 ## OAuth scopes
 
 `OAUTH_SCOPES` (space-separated, Etsy's scope-list format) defaults to
-`shops_r listings_w`: `shops_r` covers the read calls (`/api/me`, `/api/shop`),
-`listings_w` is required for the Task 9 submit pipeline (create draft listing,
-upload image, upload file) — without it Etsy answers those calls with a 403.
+`shops_r listings_w listings_r`: `shops_r` covers the read calls (`/api/me`,
+`/api/shop`), `listings_w` is required for the Task 9 submit pipeline (create
+draft listing, upload image, upload file), and `listings_r` is required for
+Task 12's browse-drafts read (`GET /api/listings`) — without the right scope
+Etsy answers the corresponding calls with a 403.
 
 **A token already stored keeps whatever scopes it was issued with.** Widening
 this list doesn't retroactively grant an already-signed-in seller the new
 scope — after changing it (or pulling this change for the first time), sign
-out and go through `/auth/login` again so the new consent screen requests
-`listings_w` and a fresh token is stored with it.
+out (which drops the stored token) and go through `/auth/login` again so the
+new consent screen requests the new scope and a fresh token is stored with it.
+This applies to `listings_r`/Task 12 too: a token stored before this change
+won't return any drafts until you sign out and re-consent.
 
 Any Etsy status this BFF doesn't have a specific mapping for (a 403 from a
 missing scope is the most likely case) is returned to the client as a clean

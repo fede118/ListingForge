@@ -104,6 +104,9 @@ class TemplateRoutesTest {
             file: ByteArray,
             filename: String,
         ): ListingFileResponse = error("not used by template routes")
+
+        override suspend fun getListings(userId: String, state: String, limit: Int, offset: Int) =
+            error("not used by template routes")
     }
 
     private fun Application.testModule(userResolver: UserResolver, templates: TemplateStore) {

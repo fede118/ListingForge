@@ -3,8 +3,10 @@ package com.section11.listingforge.api
 import com.section11.listingforge.auth.UserResolver
 import com.section11.listingforge.dto.ListingFileResponse
 import com.section11.listingforge.dto.ListingImageResponse
+import com.section11.listingforge.dto.ListingListResponse
 import com.section11.listingforge.dto.ListingRequest
 import com.section11.listingforge.dto.ListingResponse
+import com.section11.listingforge.dto.ListingSummaryResponse
 import com.section11.listingforge.dto.ShopResponse
 import com.section11.listingforge.dto.TaxonomyNodeResponse
 import com.section11.listingforge.error.EtsyUpstreamException
@@ -14,6 +16,7 @@ import com.section11.listingforge.error.ResourceNotFoundException
 import com.section11.listingforge.etsy.EtsyApi
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.forms.submitFormWithBinaryData
+import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
@@ -53,6 +56,9 @@ class ListingRoutesTest {
         var lastImageRank: Int? = null
         var lastFileBytes: ByteArray? = null
         var lastFileName: String? = null
+        var lastListingsState: String? = null
+        var lastListingsLimit: Int? = null
+        var lastListingsOffset: Int? = null
 
         override suspend fun getMe(userId: String) = error("not used by listing routes")
         override suspend fun getShop(userId: String): ShopResponse = error("not used by listing routes")
@@ -89,6 +95,26 @@ class ListingRoutesTest {
             lastFileBytes = file
             lastFileName = filename
             return ListingFileResponse(fileId = 700)
+        }
+
+        override suspend fun getListings(userId: String, state: String, limit: Int, offset: Int): ListingListResponse {
+            lastListingsState = state
+            lastListingsLimit = limit
+            lastListingsOffset = offset
+            return ListingListResponse(
+                count = 1,
+                listings = listOf(
+                    ListingSummaryResponse(
+                        listingId = EXISTING_LISTING_ID,
+                        title = "Floral Seamless Pattern",
+                        state = state,
+                        price = "4.50",
+                        quantity = 999,
+                        editUrl = "https://www.etsy.com/your/shops/me/listing-editor/edit/$EXISTING_LISTING_ID",
+                        thumbnailUrl = "https://i.etsystatic.com/mock/170x135/floral.jpg",
+                    ),
+                ),
+            )
         }
     }
 
@@ -274,6 +300,92 @@ class ListingRoutesTest {
         )
 
         assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun `GET api listings defaults to state draft and default paging`() = testApplication {
+        val etsy = SubmitPipelineFakeEtsyApi()
+        application { testModule(UserResolver { "user-a" }, etsy) }
+
+        val response = client.get("/api/listings")
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("draft", etsy.lastListingsState)
+        assertEquals(25, etsy.lastListingsLimit)
+        assertEquals(0, etsy.lastListingsOffset)
+        assertEquals(
+            """{"count":1,"listings":[{"listingId":1,"title":"Floral Seamless Pattern","state":"draft",""" +
+                """"price":"4.50","quantity":999,"editUrl":"https://www.etsy.com/your/shops/me/listing-editor/edit/1",""" +
+                """"thumbnailUrl":"https://i.etsystatic.com/mock/170x135/floral.jpg"}]}""",
+            response.bodyAsText(),
+        )
+    }
+
+    @Test
+    fun `GET api listings forwards an explicit state=draft and paging params`() = testApplication {
+        val etsy = SubmitPipelineFakeEtsyApi()
+        application { testModule(UserResolver { "user-a" }, etsy) }
+
+        val response = client.get("/api/listings?state=draft&limit=10&offset=20")
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("draft", etsy.lastListingsState)
+        assertEquals(10, etsy.lastListingsLimit)
+        assertEquals(20, etsy.lastListingsOffset)
+    }
+
+    @Test
+    fun `GET api listings is 400 for an unsupported state`() = testApplication {
+        application { testModule(UserResolver { "user-a" }, SubmitPipelineFakeEtsyApi()) }
+
+        val response = client.get("/api/listings?state=active")
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertContains(response.bodyAsText(), "Unsupported state")
+    }
+
+    @Test
+    fun `GET api listings is 400 for a non-numeric limit`() = testApplication {
+        application { testModule(UserResolver { "user-a" }, SubmitPipelineFakeEtsyApi()) }
+
+        val response = client.get("/api/listings?limit=not-a-number")
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    @Test
+    fun `GET api listings is 401 when the caller resolves to no user`() = testApplication {
+        application { testModule(UserResolver { null }, SubmitPipelineFakeEtsyApi()) }
+
+        val response = client.get("/api/listings")
+
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    /**
+     * Etsy rejects these two itself, so forwarding them would turn a caller's
+     * paging mistake into a 502 upstream failure. They belong to the caller.
+     */
+    @Test
+    fun `GET api listings is 400 for a limit outside Etsy's accepted range`() = testApplication {
+        application { testModule(UserResolver { "user-a" }, SubmitPipelineFakeEtsyApi()) }
+
+        listOf("0", "101").forEach { limit ->
+            val response = client.get("/api/listings?limit=$limit")
+
+            assertEquals(HttpStatusCode.BadRequest, response.status, "limit=$limit should be rejected")
+            assertContains(response.bodyAsText(), "between 1 and 100")
+        }
+    }
+
+    @Test
+    fun `GET api listings is 400 for a negative offset`() = testApplication {
+        application { testModule(UserResolver { "user-a" }, SubmitPipelineFakeEtsyApi()) }
+
+        val response = client.get("/api/listings?offset=-1")
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertContains(response.bodyAsText(), "non-negative")
     }
 
     /**

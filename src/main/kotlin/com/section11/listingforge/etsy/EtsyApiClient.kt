@@ -4,6 +4,7 @@ import com.section11.listingforge.auth.OAuthClient
 import com.section11.listingforge.config.AppConfig
 import com.section11.listingforge.dto.ListingFileResponse
 import com.section11.listingforge.dto.ListingImageResponse
+import com.section11.listingforge.dto.ListingListResponse
 import com.section11.listingforge.dto.ListingRequest
 import com.section11.listingforge.dto.ListingResponse
 import com.section11.listingforge.dto.ShopResponse
@@ -22,6 +23,7 @@ import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.parameter
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
@@ -200,6 +202,25 @@ class EtsyApiClient(
         return ListingFileResponse(fileId = uploaded.listingFileId)
     }
 
+    /**
+     * Task 12. `includes=Images` is required - without it Etsy's response
+     * carries no image data at all, leaving nothing to map to a thumbnail.
+     */
+    override suspend fun getListings(userId: String, state: String, limit: Int, offset: Int): ListingListResponse {
+        val token = validAccessToken(userId)
+        val shopId = resolveShopId(token)
+        val response = http.get("$base/shops/$shopId/listings") {
+            etsyAuth(token)
+            parameter("state", state)
+            parameter("limit", limit)
+            parameter("offset", offset)
+            parameter("includes", "Images")
+            expectSuccess = false
+        }
+        val page = response.etsyBodyOrThrow<EtsyListingsPage>()
+        return ListingListResponse(count = page.count, listings = page.results.map { it.toResponse() })
+    }
+
     /** GET /users/me, just for its shop_id. Every shop-scoped call pivots through this. */
     private suspend fun resolveShopId(token: String): Long {
         val me: EtsyUser = http.get("$base/users/me") { etsyAuth(token) }.body()
@@ -207,12 +228,14 @@ class EtsyApiClient(
     }
 
     /**
-     * The shared response handling for Task 9's write calls: success parses the
-     * body, a 404 (only meaningful when a listing id is in the URL) becomes
-     * ResourceNotFoundException, a 400 passes Etsy's own message through as
-     * InvalidRequestException, and anything else - most notably a 403 from a
-     * token missing the listings_w scope - becomes EtsyUpstreamException so
-     * StatusPages can surface it as a clean 502 instead of an unhandled 500.
+     * The shared response handling for Task 9's write calls and Task 12's
+     * browse read: success parses the body, a 404 (only meaningful when a
+     * listing id is in the URL) becomes ResourceNotFoundException, a 400 passes
+     * Etsy's own message through as InvalidRequestException, and anything else -
+     * most notably a 403 from a token missing listings_w (write) or listings_r
+     * (browse) - becomes EtsyUpstreamException so StatusPages can surface it as
+     * a clean 502 instead of an unhandled 500. Callers must set
+     * `expectSuccess = false` on the request, or Ktor throws before this runs.
      */
     private suspend inline fun <reified T> HttpResponse.etsyBodyOrThrow(notFoundMessage: String? = null): T = when {
         status.isSuccess() -> body()

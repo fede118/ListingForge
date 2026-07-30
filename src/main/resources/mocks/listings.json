@@ -1,0 +1,43 @@
+{
+  "count": 4,
+  "results": [
+    {
+      "listing_id": 555000101,
+      "title": "Sakura Blossom Seamless Pattern",
+      "state": "draft",
+      "price": { "amount": 450, "divisor": 100, "currency_code": "USD" },
+      "quantity": 999,
+      "images": [
+        { "listing_image_id": 777000101, "url_170x135": "https://i.etsystatic.com/mock/170x135/sakura.jpg" }
+      ]
+    },
+    {
+      "listing_id": 555000102,
+      "title": "Wildflower Meadow Seamless Pattern",
+      "state": "draft",
+      "price": { "amount": 550, "divisor": 100, "currency_code": "USD" },
+      "quantity": 999,
+      "images": [
+        { "listing_image_id": 777000102, "url_170x135": "https://i.etsystatic.com/mock/170x135/wildflower.jpg" }
+      ]
+    },
+    {
+      "listing_id": 555000103,
+      "title": "Citrus Grove Seamless Pattern",
+      "state": "draft",
+      "price": { "amount": 400, "divisor": 100, "currency_code": "USD" },
+      "quantity": 999,
+      "images": []
+    },
+    {
+      "listing_id": 555000104,
+      "title": "Retired Autumn Leaves Pattern",
+      "state": "active",
+      "price": { "amount": 500, "divisor": 100, "currency_code": "USD" },
+      "quantity": 500,
+      "images": [
+        { "listing_image_id": 777000104, "url_170x135": "https://i.etsystatic.com/mock/170x135/autumn.jpg" }
+      ]
+    }
+  ]
+}
