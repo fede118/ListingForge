@@ -3,7 +3,12 @@
 import com.section11.listingforge.config.AppConfig
 import com.section11.listingforge.token.TokenStore
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.Url
+import io.ktor.http.protocolWithAuthority
+import io.ktor.server.application.ApplicationCall
+import io.ktor.server.request.header
 import io.ktor.server.response.respondRedirect
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
@@ -48,7 +53,7 @@ fun Route.authRoutes(
         val verifier = Pkce.newVerifier()
         val challenge = Pkce.challengeFor(verifier)
         val state = Pkce.newState()
-        pendingAuth.put(state, verifier, client)
+        pendingAuth.put(state, verifier, client, resolveReturnOrigin(call, config))
 
         consentScreen.respond(call, state, challenge)
     }
@@ -78,7 +83,7 @@ fun Route.authRoutes(
                 // so XSS can't steal it) and bounce back to the SPA, which then
                 // fetches the signed-in user. No credential ever reaches JS.
                 call.sessions.set(UserSession(record.userId))
-                call.respondRedirect(config.client.frontendOrigin)
+                call.respondRedirect(pending.returnOrigin)
             }
             AuthClient.ANDROID -> {
                 // Native app: cookies don't fit. Mint a signed bearer token and
@@ -108,6 +113,38 @@ fun Route.authRoutes(
         call.respondText("Logged out")
     }
 }
+
+/**
+ * Which origin a WEB sign-in should land back on after consent, captured from
+ * the request that *starts* the flow (`/auth/login`) rather than the callback:
+ * Etsy (or, in MOCK, the stub consent page) sends the browser to
+ * `ETSY_REDIRECT_URI` directly, which always points at this BFF - by the time
+ * `/auth/callback` runs, the request that reached it carries no trace of
+ * which origin the user actually started from. So this is read once here and
+ * carried through `PendingAuthStore` instead.
+ *
+ * Prefers the `Origin` header, falling back to the origin portion of
+ * `Referer`. The fallback is the path that actually runs: the web client
+ * reaches `/auth/login` by a top-level GET navigation, and browsers omit
+ * `Origin` on those (it's mainly a fetch/XHR/cross-site-POST header) while
+ * still sending `Referer`. The dev server proxies `/auth/login` through
+ * without rewriting headers, so this observes the dev origin there and the
+ * BFF's own when the app is served same-origin.
+ *
+ * Restricted to an allowlist (`frontendOrigin` + the BFF's own
+ * [AppConfig.server] origin) so a forged `Origin`/`Referer` can't turn this
+ * into an open redirect; anything unrecognised or absent falls back to
+ * `frontendOrigin`, matching pre-fix behavior.
+ */
+private fun resolveReturnOrigin(call: ApplicationCall, config: AppConfig): String {
+    val candidate = call.request.header(HttpHeaders.Origin)
+        ?: call.request.header(HttpHeaders.Referrer)?.let(::originOf)
+    val allowlist = setOf(config.client.frontendOrigin, config.server.publicOrigin)
+    return candidate?.takeIf { it in allowlist } ?: config.client.frontendOrigin
+}
+
+/** Extracts `scheme://host[:port]` from a full URL, e.g. a `Referer` header. */
+private fun originOf(url: String): String? = runCatching { Url(url).protocolWithAuthority }.getOrNull()
 
 /**
  * Renders the bearer token as selectable text for the person who just

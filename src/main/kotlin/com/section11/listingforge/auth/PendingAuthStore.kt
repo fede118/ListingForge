@@ -3,7 +3,12 @@
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
-data class PendingAuth(val verifier: String, val client: AuthClient, val createdAt: Instant)
+data class PendingAuth(
+    val verifier: String,
+    val client: AuthClient,
+    val returnOrigin: String,
+    val createdAt: Instant,
+)
 
 /**
  * Which frontend started the flow; decides how the callback hands control
@@ -16,16 +21,23 @@ data class PendingAuth(val verifier: String, val client: AuthClient, val created
 enum class AuthClient { WEB, ANDROID, POSTMAN }
 
 /**
- * Holds in-flight OAuth attempts: state -> the PKCE verifier issued for it.
+ * Holds in-flight OAuth attempts: state -> the PKCE verifier issued for it
+ * (plus which client started it and where a WEB client should land back).
  *
  * Deliberately in-memory and ephemeral. An auth attempt that doesn't finish
  * within minutes is worthless, and one that doesn't survive a restart is no
  * loss. Contrast with TokenStore (durable, SQLite): keeping ephemeral and
  * durable state in different places, with different lifetimes, is the point â€”
  * not an oversight.
+ *
+ * `returnOrigin` rides alongside the verifier rather than in a separate store
+ * keyed by something else: `state` is already the thing validated as
+ * unforgeable on the callback (CSRF defense), so anchoring the origin to it
+ * means it inherits that same guarantee for free - an attacker can't swap in
+ * a different origin without also supplying the matching state.
  */
 interface PendingAuthStore {
-    fun put(state: String, verifier: String, client: AuthClient)
+    fun put(state: String, verifier: String, client: AuthClient, returnOrigin: String)
     /** Returns AND removes the entry (single-use); null if absent or expired. */
     fun consume(state: String): PendingAuth?
 }
@@ -35,8 +47,8 @@ class InMemoryPendingAuthStore(
 ) : PendingAuthStore {
     private val entries = ConcurrentHashMap<String, PendingAuth>()
 
-    override fun put(state: String, verifier: String, client: AuthClient) {
-        entries[state] = PendingAuth(verifier, client, Instant.now())
+    override fun put(state: String, verifier: String, client: AuthClient, returnOrigin: String) {
+        entries[state] = PendingAuth(verifier, client, returnOrigin, Instant.now())
     }
 
     override fun consume(state: String): PendingAuth? {
