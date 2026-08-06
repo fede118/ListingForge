@@ -58,9 +58,17 @@ the SSH alias and the client checkout path.
 ## Etsy registration
 
 `ETSY_REDIRECT_URI` must match the Etsy app's registered callback **byte-for-byte**, including
-scheme and port. Changing the host means updating both. Note that Etsy may reject a plain-`http`
-private-IP callback — if it does, this deployment cannot run in `prod` mode until a real HTTPS
-hostname exists (see the remote-access decision in `BUILD_BRIEF.md` Task 14).
+scheme and port. Changing the host means updating both.
+
+**Etsy rejects IP-address callbacks.** The registration form requires the host to be a domain name;
+`http://192.168.1.144:8080/auth/callback` is refused as invalid. It does *not* require HTTPS —
+`http://localhost:8080` is accepted — so the constraint is the host being a **name**, not TLS.
+
+This deployment satisfies that with `fedesrasp.lan`, which exists because the gateway registers
+DHCP client hostnames under `.lan`. Two consequences worth knowing: the name follows the **host's
+hostname**, so renaming the machine changes it and breaks the registered callback; and it resolves
+only for devices using the gateway as their DNS server, i.e. on the LAN. Off-network access needs a
+publicly resolvable hostname — see the remote-access decision in `BUILD_BRIEF.md` Task 14.
 
 ## Known gaps at this stage
 
