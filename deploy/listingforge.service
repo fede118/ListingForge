@@ -1,0 +1,40 @@
+[Unit]
+Description=ListingForge BFF (Ktor API + same-origin wasmJS web app)
+Documentation=https://github.com/section11/listingforge-bff/blob/master/deploy/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=listingforge
+Group=listingforge
+WorkingDirectory=/opt/listingforge
+
+# Secrets and configuration live outside the deployed payload, so a redeploy
+# never overwrites them. Root-owned, group-readable by listingforge only.
+EnvironmentFile=/etc/listingforge/listingforge.env
+
+# The `application` plugin's generated start script (rootProject.name).
+ExecStart=/opt/listingforge/app/bin/listingforge-bff
+
+Restart=on-failure
+RestartSec=5s
+
+# Sandboxing. ReadWritePaths is the SQLite directory: ProtectSystem=strict makes
+# the whole filesystem read-only apart from what is named here, and that database
+# holds the Etsy OAuth tokens plus the session signing key.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/listingforge
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target
