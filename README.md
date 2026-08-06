@@ -138,6 +138,17 @@ matters because `WebAssembly.instantiateStreaming` hard-refuses any other
 content type; it's the single most common silent wasm-deploy failure, which is
 why it's locked in by a test (`WebAppRoutesTest`) rather than left to trust.
 
+**Signing in works from either origin the web app can be served from.** Since
+Task 13 that's two: this BFF's own origin (`BFF_ORIGIN`, once `WEBAPP_DIR` is
+set) and the webpack dev server (`FRONTEND_ORIGIN`). `GET /auth/login`
+captures the initiating origin (`Origin` header, falling back to `Referer`'s
+origin) and carries it through `PendingAuthStore` alongside the PKCE state, so
+`/auth/callback` redirects back to wherever the flow actually started rather
+than always landing on `FRONTEND_ORIGIN` - see the KDoc on
+`resolveReturnOrigin` in `AuthRoutes.kt`. Only `FRONTEND_ORIGIN`/`BFF_ORIGIN`
+are ever used as a redirect target; anything else falls back to
+`FRONTEND_ORIGIN`, so a forged header can't turn this into an open redirect.
+
 ## OAuth scopes
 
 `OAUTH_SCOPES` (space-separated, Etsy's scope-list format) defaults to

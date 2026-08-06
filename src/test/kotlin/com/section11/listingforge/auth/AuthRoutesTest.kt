@@ -137,6 +137,83 @@ class AuthRoutesTest {
     }
 
     @Test
+    fun `web flow - login from the frontend origin redirects back to it`() = testApplication {
+        application { testModule(InMemoryPendingAuthStore(), InMemoryTokenStore()) }
+        val client = createClient { followRedirects = false }
+
+        val loginResponse = client.get("/auth/login") {
+            header(HttpHeaders.Origin, mockConfig.client.frontendOrigin)
+        }
+        val state = stateFrom(loginResponse.bodyAsText())
+
+        val callbackResponse = client.get("/auth/callback?code=mock-auth-code&state=$state")
+
+        assertEquals(mockConfig.client.frontendOrigin, callbackResponse.headers[HttpHeaders.Location])
+    }
+
+    @Test
+    fun `web flow - login from the BFF's own origin redirects back to it`() = testApplication {
+        application { testModule(InMemoryPendingAuthStore(), InMemoryTokenStore()) }
+        val client = createClient { followRedirects = false }
+
+        val loginResponse = client.get("/auth/login") {
+            header(HttpHeaders.Origin, mockConfig.server.publicOrigin)
+        }
+        val state = stateFrom(loginResponse.bodyAsText())
+
+        val callbackResponse = client.get("/auth/callback?code=mock-auth-code&state=$state")
+
+        assertEquals(mockConfig.server.publicOrigin, callbackResponse.headers[HttpHeaders.Location])
+    }
+
+    @Test
+    fun `web flow - falls back to the origin portion of Referer when Origin is absent`() = testApplication {
+        // The dev-server-proxy case: a same-origin window.location.href navigation
+        // sends no Origin header (top-level GET), only Referer.
+        application { testModule(InMemoryPendingAuthStore(), InMemoryTokenStore()) }
+        val client = createClient { followRedirects = false }
+
+        val loginResponse = client.get("/auth/login") {
+            header(HttpHeaders.Referrer, "${mockConfig.server.publicOrigin}/some/page")
+        }
+        val state = stateFrom(loginResponse.bodyAsText())
+
+        val callbackResponse = client.get("/auth/callback?code=mock-auth-code&state=$state")
+
+        assertEquals(mockConfig.server.publicOrigin, callbackResponse.headers[HttpHeaders.Location])
+    }
+
+    @Test
+    fun `web flow - an unrecognised Origin never becomes the redirect target`() = testApplication {
+        // Open-redirect regression test: a forged/unknown Origin must fall back
+        // to frontendOrigin exactly like the no-header case, not be trusted.
+        application { testModule(InMemoryPendingAuthStore(), InMemoryTokenStore()) }
+        val client = createClient { followRedirects = false }
+
+        val loginResponse = client.get("/auth/login") {
+            header(HttpHeaders.Origin, "http://evil.example")
+        }
+        val state = stateFrom(loginResponse.bodyAsText())
+
+        val callbackResponse = client.get("/auth/callback?code=mock-auth-code&state=$state")
+
+        assertEquals(mockConfig.client.frontendOrigin, callbackResponse.headers[HttpHeaders.Location])
+    }
+
+    @Test
+    fun `web flow - login with neither Origin nor Referer falls back to frontendOrigin`() = testApplication {
+        application { testModule(InMemoryPendingAuthStore(), InMemoryTokenStore()) }
+        val client = createClient { followRedirects = false }
+
+        val loginResponse = client.get("/auth/login")
+        val state = stateFrom(loginResponse.bodyAsText())
+
+        val callbackResponse = client.get("/auth/callback?code=mock-auth-code&state=$state")
+
+        assertEquals(mockConfig.client.frontendOrigin, callbackResponse.headers[HttpHeaders.Location])
+    }
+
+    @Test
     fun `android flow - login then callback issues a bearer that api me honors`() = testApplication {
         application { testModule(InMemoryPendingAuthStore(), InMemoryTokenStore()) }
         val client = createClient { followRedirects = false }

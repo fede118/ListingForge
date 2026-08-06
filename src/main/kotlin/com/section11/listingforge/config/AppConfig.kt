@@ -32,10 +32,28 @@ internal object Env {
     fun optionalOrNull(name: String): String? = System.getenv(name)
 }
 
-/** Where the server itself binds. */
-data class ServerConfig(val port: Int) {
+/**
+ * Where the server itself binds, and the origin it's reachable at.
+ *
+ * `publicOrigin` exists so the auth callback can recognise "this BFF, served
+ * same-origin" as a valid post-login redirect target (Task 13's `WEBAPP_DIR`
+ * path) without trusting the inbound `Host` header for that decision: `Host`
+ * comes from the same request whose `Origin`/`Referer` we're validating
+ * against it, so deriving the allowlist entry from it would make the check a
+ * tautology (every request's origin would trivially match "its own Host").
+ * Defaulting it from `port` keeps the common case (`SERVER_PORT` alone) free
+ * of extra config; `BFF_ORIGIN` overrides it for anything not on plain
+ * `http://localhost`.
+ */
+data class ServerConfig(val port: Int, val publicOrigin: String = "http://localhost:$port") {
     companion object {
-        fun fromEnv() = ServerConfig(port = Env.optional("SERVER_PORT", "8080").toInt())
+        fun fromEnv(): ServerConfig {
+            val port = Env.optional("SERVER_PORT", "8080").toInt()
+            return ServerConfig(
+                port = port,
+                publicOrigin = Env.optional("BFF_ORIGIN", "http://localhost:$port"),
+            )
+        }
     }
 }
 
