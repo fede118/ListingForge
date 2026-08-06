@@ -1,0 +1,8 @@
+# These files are consumed by Linux, not by Windows, and CRLF breaks them in ways
+# that are hard to spot: a trailing \r on ExecStart= makes systemd look for a
+# binary that does not exist, and a trailing \r on ETSY_REDIRECT_URI defeats the
+# byte-for-byte match Etsy requires against the registered callback.
+*.sh            text eol=lf
+*.service       text eol=lf
+*.env.example   text eol=lf
+gradlew         text eol=lf
