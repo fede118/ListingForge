@@ -101,6 +101,21 @@ data class WebAppConfig(val dir: String?) {
 }
 
 /**
+ * Where the built Android debug APK (Task 15) and its `app-metadata.json`
+ * sidecar live on disk, if this BFF is also offering it for download. Same
+ * shape as [WebAppConfig] and for the same reason: the BFF never builds the
+ * APK - `deploy/deploy.sh` does, behind `WITH_APK=1` - so an API-only dev run
+ * or the test suite needs nothing on disk, and unset means "register no
+ * static route and 404 the metadata endpoint" rather than pointing at a
+ * directory that doesn't exist.
+ */
+data class DownloadsConfig(val dir: String?) {
+    companion object {
+        fun fromEnv() = DownloadsConfig(dir = Env.optionalOrNull("DOWNLOADS_DIR"))
+    }
+}
+
+/**
  * Session/cookie settings. `signKey` HMAC-signs the cookie and bearer tokens, so
  * it's a secret and required in prod. Mock mode still installs the Sessions
  * plugin, so it needs *some* key, but never a real one.
@@ -199,6 +214,7 @@ data class AppConfig(
     val session: SessionConfig,
     val etsy: EtsyConfig,
     val webApp: WebAppConfig = WebAppConfig(dir = null),
+    val downloads: DownloadsConfig = DownloadsConfig(dir = null),
 ) {
     companion object {
         fun fromEnv(): AppConfig {
@@ -214,6 +230,7 @@ data class AppConfig(
                 session = if (mode == AppMode.MOCK) SessionConfig.mock() else SessionConfig.fromEnv(),
                 etsy = if (mode == AppMode.MOCK) EtsyConfig.mock() else EtsyConfig.fromEnv(),
                 webApp = WebAppConfig.fromEnv(),
+                downloads = DownloadsConfig.fromEnv(),
             )
         }
     }

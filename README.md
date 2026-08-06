@@ -149,6 +149,31 @@ than always landing on `FRONTEND_ORIGIN` - see the KDoc on
 are ever used as a redirect target; anything else falls back to
 `FRONTEND_ORIGIN`, so a forged header can't turn this into an open redirect.
 
+## Serving the Android APK (Task 15)
+
+Same shape as `WEBAPP_DIR` above, for a second static asset: point `DOWNLOADS_DIR` at a directory
+holding the Android **debug** APK (stable filename `listingforge.apk`, so the download URL stays
+short enough to type on a tablet) plus an `app-metadata.json` sidecar, and the BFF serves both:
+
+```bash
+DOWNLOADS_DIR=/path/to/downloads ./gradlew run
+```
+
+- `/downloads/listingforge.apk` — the file itself, `Content-Type: application/vnd.android.package-archive`
+  (Ktor 3.1's built-in MIME table already gets this right, the same table Task 13 verified for
+  `.wasm`) and a forced `Content-Disposition: attachment` so a browser offers it as a download
+  instead of trying to render the bytes.
+- `GET /api/app/android` — `{versionName, versionCode, sizeBytes, buildTime, sha256, downloadPath}`
+  for the client's About screen, read straight from `app-metadata.json` rather than computed per
+  request (sha256-ing a ~30MB file on every request on a Raspberry Pi is wasteful, and the Pi has
+  no `aapt` to parse an APK for its version). **No authentication** — the About screen must render
+  before sign-in, same as the web bundle itself. **404** when `DOWNLOADS_DIR` is unset or either
+  file is missing.
+
+The BFF never builds the APK — `deploy/deploy.sh`'s `WITH_APK=1` step does, on the workstation, and
+writes both files into `DOWNLOADS_DIR`. Leave `DOWNLOADS_DIR` unset (the default) to run with no
+Android download at all — an API-only or web-only run needs neither file on disk.
+
 ## OAuth scopes
 
 `OAUTH_SCOPES` (space-separated, Etsy's scope-list format) defaults to

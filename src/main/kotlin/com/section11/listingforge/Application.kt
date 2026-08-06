@@ -1,6 +1,7 @@
 ﻿package com.section11.listingforge
 
 import com.section11.listingforge.api.apiRoutes
+import com.section11.listingforge.api.appRoutes
 import com.section11.listingforge.api.listingRoutes
 import com.section11.listingforge.api.templateRoutes
 import com.section11.listingforge.auth.ConsentScreen
@@ -14,6 +15,7 @@ import com.section11.listingforge.di.appModule
 import com.section11.listingforge.etsy.EtsyApi
 import com.section11.listingforge.plugins.configureCallLogging
 import com.section11.listingforge.plugins.configureCors
+import com.section11.listingforge.plugins.configureDownloads
 import com.section11.listingforge.plugins.configureSerialization
 import com.section11.listingforge.plugins.configureSessions
 import com.section11.listingforge.plugins.configureStatusPages
@@ -67,8 +69,11 @@ fun Application.module(config: AppConfig) {
         apiRoutes(etsyApi, userResolver)
         templateRoutes(templateStore, etsyApi, userResolver)
         listingRoutes(etsyApi, userResolver)
+        appRoutes(config)
     }
 
-    // Last on purpose: a catch-all at "/" that must not shadow the routes above.
+    // Last on purpose: static catch-alls ("/downloads", then "/" for the web
+    // app) that must not shadow the routes above.
+    configureDownloads(config)
     configureWebApp(config)
 }
