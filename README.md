@@ -89,6 +89,55 @@ issuance, `/api/*` auth enforcement — is the real code path. This is what lets
 the client's sign-in UI be built and tested before the Etsy app is approved,
 without the BFF secretly skipping auth.
 
+## Serving the web app (Task 13)
+
+The BFF can serve the built wasmJS bundle itself, same-origin with the API, so
+a browser hitting the BFF's origin gets the whole app with no other process
+running. This matters beyond convenience: the session cookie is
+`SameSite=Lax`, which browsers withhold on cross-origin requests, so
+same-origin is what makes the web client first-party and retires CORS for it
+entirely (CORS/`FRONTEND_ORIGIN` still exist and still matter for the webpack
+dev server, which remains the day-to-day dev loop - see below).
+
+The BFF **never builds** this bundle - that happens in the **client** repo:
+
+```bash
+# in the CLIENT repo (ListingForge-fe/ListingForge)
+./gradlew :webApp:wasmJsBrowserDistribution
+# output: webApp/build/dist/wasmJs/productionExecutable/
+#   (index.html, webApp.js, the .wasm binaries incl. skiko's, styles.css,
+#    favicon.svg, Compose resources)
+```
+
+Point the BFF at that folder with `WEBAPP_DIR` (unset by default - an
+API-only run registers no static route at all):
+
+```bash
+WEBAPP_DIR=/path/to/webApp/build/dist/wasmJs/productionExecutable ./gradlew run
+```
+
+Then `http://localhost:8080` serves `index.html`, while `/health`, `/auth/*`
+and `/api/*` keep working exactly as before - the static handler is a
+catch-all registered *after* those routes specifically so it can't shadow
+them (see `WebAppRoutesTest`).
+
+**Redeploying the web app needs no BFF rebuild or restart.** The webpack
+output filenames are **not content-hashed** (`webApp.js`, `skiko.wasm` keep
+the same name every build), so copying a new bundle into the same `WEBAPP_DIR`
+and hard-refreshing the browser is enough - the BFF reads the directory live.
+What makes that safe rather than serving a stale cached app: `ConditionalHeaders`
+gives every file a `Last-Modified`/`If-Modified-Since` round trip (304 on an
+unchanged file), and `CachingHeaders` sends `Cache-Control: no-cache` (always
+revalidate, not blind-cache and not `no-store`) on everything under this
+route.
+
+`.wasm` files are served as `application/wasm` with no extra configuration -
+verified against Ktor 3.1.0's built-in file-extension MIME table, which
+already maps `wasm` to `application/wasm` with no charset appended. This
+matters because `WebAssembly.instantiateStreaming` hard-refuses any other
+content type; it's the single most common silent wasm-deploy failure, which is
+why it's locked in by a test (`WebAppRoutesTest`) rather than left to trust.
+
 ## OAuth scopes
 
 `OAUTH_SCOPES` (space-separated, Etsy's scope-list format) defaults to
@@ -116,7 +165,11 @@ than an opaque 500 — see `EtsyUpstreamException` / `configureStatusPages`.
 - **Cross-site cookies.** `SameSite=Lax` + `secure=false` is correct for
   same-origin http-localhost testing. A separate-origin web client (the wasm app
   on another port/domain) will need `SameSite=None` + `Secure` + HTTPS, and the
-  CORS `allowHost` set to that origin.
+  CORS `allowHost` set to that origin. **Closed for the web client once `WEBAPP_DIR`
+  is set** (Task 13): serving the app from this BFF's own origin makes it
+  first-party, so `SameSite=Lax` is correct as-is and no CORS applies to it at
+  all. The webpack dev server is still a separate origin during day-to-day
+  development, so `FRONTEND_ORIGIN`/CORS stay in place for that loop.
 - **Pending-auth cleanup.** Expired entries are skipped but not actively swept.
   Fine in-memory; revisit if it ever moves to a store.
 - **Refresh races.** Concurrent requests for one user could refresh in parallel.

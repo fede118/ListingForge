@@ -17,6 +17,7 @@ import com.section11.listingforge.plugins.configureCors
 import com.section11.listingforge.plugins.configureSerialization
 import com.section11.listingforge.plugins.configureSessions
 import com.section11.listingforge.plugins.configureStatusPages
+import com.section11.listingforge.plugins.configureWebApp
 import com.section11.listingforge.template.TemplateStore
 import com.section11.listingforge.token.TokenStore
 import io.ktor.server.application.Application
@@ -67,4 +68,7 @@ fun Application.module(config: AppConfig) {
         templateRoutes(templateStore, etsyApi, userResolver)
         listingRoutes(etsyApi, userResolver)
     }
+
+    // Last on purpose: a catch-all at "/" that must not shadow the routes above.
+    configureWebApp(config)
 }

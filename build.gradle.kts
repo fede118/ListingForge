@@ -22,6 +22,8 @@ dependencies {
     implementation("io.ktor:ktor-server-cors:$ktorVersion")
     implementation("io.ktor:ktor-server-status-pages:$ktorVersion")
     implementation("io.ktor:ktor-server-call-logging:$ktorVersion")
+    implementation("io.ktor:ktor-server-conditional-headers:$ktorVersion")
+    implementation("io.ktor:ktor-server-caching-headers:$ktorVersion")
 
     // --- Ktor client (used to call Etsy) ---
     implementation("io.ktor:ktor-client-core:$ktorVersion")
