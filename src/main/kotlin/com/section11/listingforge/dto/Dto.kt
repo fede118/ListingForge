@@ -133,3 +133,20 @@ data class ListingSummaryResponse(
  */
 @Serializable
 data class ListingListResponse(val count: Int, val listings: List<ListingSummaryResponse>)
+
+/**
+ * GET /api/app/android: the About screen's download card (Task 15). Parsed
+ * straight out of `deploy/deploy.sh`'s `app-metadata.json` sidecar - see
+ * AppRoutes.kt for why this is read rather than computed per request.
+ * `downloadPath` is the `/downloads/...` URL to hand to a browser's download
+ * attribute or an Android intent, not a filesystem path.
+ */
+@Serializable
+data class AndroidAppMetadataResponse(
+    val versionName: String,
+    val versionCode: Int,
+    val sizeBytes: Long,
+    val buildTime: String,
+    val sha256: String,
+    val downloadPath: String,
+)

@@ -9,6 +9,7 @@ whole deployment. Target used here: Raspberry Pi 5, Raspberry Pi OS / Debian 13 
 |---|---|---|
 | `/opt/listingforge/app` | `listingforge` | the `installDist` tree (`bin/`, `lib/`) |
 | `/opt/listingforge/webapp` | `listingforge` | the wasmJS bundle, served at `/` |
+| `/opt/listingforge/downloads` | `listingforge` | the Android debug APK + `app-metadata.json`, served at `/downloads` (Task 15, `WITH_APK=1` only) |
 | `/etc/listingforge/listingforge.env` | `root:listingforge` 0640 | secrets + config |
 | `/var/lib/listingforge/db` | `listingforge` | SQLite — **the thing to back up** |
 
@@ -54,6 +55,28 @@ bash deploy/deploy.sh
 
 `SKIP_WEB=1` skips the wasm build when only the server changed. `PI_HOST` and `CLIENT_DIR` override
 the SSH alias and the client checkout path.
+
+### Shipping the Android APK (Task 15)
+
+Off by default — `assembleDebug` on every deploy is a tax paid mostly for nothing, since the
+day-to-day loop is the web app. Opt in with `WITH_APK=1`, and pass `BFF_BASE_URL` explicitly (the
+script fails fast if it's unset, rather than silently baking in a dev default that ships an APK
+dead on arrival on the tablet):
+
+```bash
+WITH_APK=1 BFF_BASE_URL=http://fedesrasp.lan:8080 bash deploy/deploy.sh
+```
+
+This builds the **debug** variant only (`:androidApp:assembleDebug`) — deliberate, not a shortcut:
+release builds deny cleartext http, and this deployment is plain `http://fedesrasp.lan:8080` until
+TLS is in front of it, so a release APK would install and then fail every call. `-Papp.versionCode`
+is set from the client repo's commit count (`git rev-list --count HEAD`), so the About screen's
+download card can tell whether the tablet already has the current build. The script renames the
+built APK to the stable `listingforge.apk`, generates `app-metadata.json` alongside it (version,
+size, sha256, build time — computed here on the workstation, not on the Pi, which has neither
+`aapt` nor cycles to spare hashing a ~30MB file per request), and ships both to
+`/opt/listingforge/downloads`, a directory the script creates on demand (`mkdir -p`) if
+`pi-bootstrap.sh` hasn't been re-run since this landed.
 
 ## Etsy registration
 
